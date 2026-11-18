@@ -1,0 +1,19 @@
+{
+  "parameters": {
+    "school_policy": {
+      "defaultValue": { "value": "standard" },
+      "description": "standard: curriculum questions may use the cloud. strict: nothing leaves the laptop.",
+      "valueType": "STRING"
+    },
+    "cloud_model": {
+      "defaultValue": { "value": "gemini-3.5-flash-lite" },
+      "description": "Cloud model for the curriculum question and the two open tasks.",
+      "valueType": "STRING"
+    },
+    "task_modes": {
+      "defaultValue": { "value": "{}" },
+      "description": "JSON map of task id to inference mode. Ignored for tasks that touch learner data.",
+      "valueType": "JSON"
+    }
+  }
+}

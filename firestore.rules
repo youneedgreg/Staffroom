@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // The shared plan library. A plan is a curriculum question and the cloud's answer.
+    // It never holds learner data: the app builds the question from curriculum words
+    // and runs the roster guard on it before it is sent or shared.
+    match /plans/{planId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['packId', 'subStrandId', 'question', 'answer', 'sources', 'at', 'uid'])
+        && request.resource.data.question is string
+        && request.resource.data.question.size() < 2000
+        && request.resource.data.answer is string
+        && request.resource.data.answer.size() < 8000;
+      allow update, delete: if false;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
