@@ -5,7 +5,7 @@ import { CBC_G5_MATHS as pack } from '../src/core/curriculum';
 import { askPlan, draftRemark, needsRemark, summariseDifficulty, writeParentNote } from '../src/core/flows';
 import { findNames } from '../src/core/guard';
 import { strugglingGroups } from '../src/core/groups';
-import { summarise, trim, type LedgerEntry } from '../src/core/ledger';
+import { ranText, summarise, trim, type LedgerEntry } from '../src/core/ledger';
 import { DEFAULT_SETTINGS, type Settings } from '../src/core/policy';
 import { lessonIdeaPrompt, plainWordsPrompt, planPrompt, remarkPrompt } from '../src/core/prompts';
 import { runTask, type RunContext } from '../src/core/runner';
@@ -89,7 +89,31 @@ describe('runTask: learner data', () => {
     expect(ledger[0]).toMatchObject({ outcome: 'error', source: 'in_cloud', sentText: `${spec.system}\n\n${spec.prompt}` });
     expect(summarise(ledger).learnerTasksInCloud).toBe(1);
   });
+
+  it('treats a learner request that reached the cloud before running on the device as a breach, and logs the text', async () => {
+    const { ctx, ledger } = setup({}, DEFAULT_SETTINGS, fallbackEngine(429));
+    const spec = remarkSpec();
+    const r = await runTask(ctx, spec);
+    expect(r).toMatchObject({ status: 'error', kind: 'invariant' });
+    expect(ledger[0]).toMatchObject({ outcome: 'error', source: 'on_device', sentText: `${spec.system}\n\n${spec.prompt}` });
+    expect(summarise(ledger).learnerTasksInCloud).toBe(1);
+  });
 });
+
+/** An engine whose cloud refuses first and whose device then does the work (PREFER_IN_CLOUD falling back). */
+function fallbackEngine(status: number): Engine {
+  return {
+    name: 'fallback',
+    simulated: true,
+    run: async (request: EngineRequest): Promise<EngineResult> => ({
+      text: request.task === 'remark' ? '[NAME] did well.' : 'Count to ten together.',
+      source: 'on_device',
+      refusedBeforeFallback: { status },
+    }),
+    deviceStatus: async () => 'available',
+    prepareDevice: async () => undefined,
+  };
+}
 
 /** An engine whose cloud answers every request with an HTTP error. */
 function refusingEngine(status: number): Engine {
@@ -137,7 +161,28 @@ describe('runTask: the curriculum question', () => {
     expect(entry.sentText).toBe(`${spec.system}\n\n${spec.prompt}`);
     expect(entry.sentChars).toBe(entry.sentText!.length);
     expect(entry.note).toContain('HTTP 429');
-    expect(summarise(ledger)).toMatchObject({ charsSent: entry.sentChars, learnerTasksInCloud: 0 });
+    expect(summarise(ledger)).toMatchObject({ inCloud: 0, refusedInCloud: 1, charsSent: entry.sentChars, learnerTasksInCloud: 0 });
+    expect(ranText(entry)).toBe('Sent to the cloud, refused');
+  });
+
+  it('logs a cloud-first request the cloud refused before the device took over as sent', async () => {
+    const { ctx, ledger } = setup({}, DEFAULT_SETTINGS, fallbackEngine(429));
+    const spec = lessonIdeaPrompt(pack, group.subStrand);
+    const r = await runTask(ctx, spec);
+    expect(r).toMatchObject({ status: 'ok', source: 'on_device' });
+    const entry = ledger[0]!;
+    expect(entry).toMatchObject({ outcome: 'ok', mode: 'prefer_in_cloud', source: 'on_device' });
+    expect(entry.sentText).toBe(`${spec.system}\n\n${spec.prompt}`);
+    expect(entry.sentChars).toBe(entry.sentText!.length);
+    expect(entry.note).toContain('HTTP 429');
+    expect(ranText(entry)).toBe('On this laptop, after the cloud refused');
+    expect(summarise(ledger)).toMatchObject({
+      onDevice: 1,
+      inCloud: 0,
+      refusedInCloud: 1,
+      charsSent: entry.sentChars,
+      learnerTasksInCloud: 0,
+    });
   });
 
   it('reports offline and sends nothing', async () => {

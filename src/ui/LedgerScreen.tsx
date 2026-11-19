@@ -1,4 +1,4 @@
-import { summarise, type LedgerEntry } from '../core/ledger';
+import { ranText, summarise, type LedgerEntry } from '../core/ledger';
 import { TASKS, type Mode } from '../core/policy';
 
 const MODE_TEXT: Record<Mode | 'disabled', string> = {
@@ -25,6 +25,7 @@ export function LedgerScreen({ ledger, onClear }: { ledger: LedgerEntry[]; onCle
         </div>
         <div className="tile"><dt>Ran on this laptop</dt><dd data-testid="tile-on-device">{s.onDevice}</dd></div>
         <div className="tile"><dt>Ran in the cloud</dt><dd data-testid="tile-in-cloud">{s.inCloud}</dd></div>
+        <div className="tile"><dt>Sent to the cloud, refused</dt><dd data-testid="tile-refused">{s.refusedInCloud}</dd></div>
         <div className="tile"><dt>Characters sent</dt><dd data-testid="tile-chars">{s.charsSent}</dd></div>
         <div className="tile"><dt>Blocked by the name check</dt><dd>{s.blocked}</dd></div>
         <div className="tile"><dt>Failed</dt><dd data-testid="tile-errors">{s.errors}</dd></div>
@@ -52,15 +53,7 @@ export function LedgerScreen({ ledger, onClear }: { ledger: LedgerEntry[]; onCle
                   <td>{new Date(e.at).toLocaleTimeString()}</td>
                   <th scope="row">{TASKS[e.task].label}</th>
                   <td>{MODE_TEXT[e.mode]}</td>
-                  <td>
-                    {e.source === 'on_device'
-                      ? 'On this laptop'
-                      : e.source === 'in_cloud'
-                        ? e.outcome === 'error'
-                          ? 'Sent to the cloud, refused'
-                          : 'In the cloud'
-                        : 'Did not run'}
-                  </td>
+                  <td>{ranText(e)}</td>
                   <td>{OUTCOME_TEXT[e.outcome]}{e.note ? `: ${e.note}` : ''}</td>
                   <td>
                     {e.sentText ? (

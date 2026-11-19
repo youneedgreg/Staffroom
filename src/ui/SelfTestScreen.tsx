@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { CBC_G5_MATHS as pack } from '../core/curriculum';
 import { askPlan, draftRemark, summariseDifficulty, writeParentNote, type Failure } from '../core/flows';
 import { strugglingGroups } from '../core/groups';
-import type { LedgerEntry } from '../core/ledger';
+import { ranText, type LedgerEntry } from '../core/ledger';
 import { resolveMode, TASKS, type Mode, type Settings, type TaskId } from '../core/policy';
 import { lessonIdeaPrompt, plainWordsPrompt } from '../core/prompts';
 import { runTask, type RunContext } from '../core/runner';
@@ -66,14 +66,7 @@ export function SelfTestScreen({ engine, settings, record }: Props) {
     };
     const add = (task: TaskId, ok: boolean, result: string) => {
       const e = last as LedgerEntry | null;
-      const ran =
-        e?.source === 'on_device'
-          ? 'On this laptop'
-          : e?.source === 'in_cloud'
-            ? e.outcome === 'error'
-              ? 'Sent to the cloud, refused'
-              : 'In the cloud'
-            : 'Did not run';
+      const ran = ranText(e);
       setRows((current) => [
         ...current,
         { task, mode: resolveMode(task, settings).mode, ran, ms: e?.ms ?? 0, result, ok },

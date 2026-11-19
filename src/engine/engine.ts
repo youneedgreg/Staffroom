@@ -21,6 +21,11 @@ export interface EngineResult {
   source: InferenceSource;
   sources?: WebSource[];
   searchHtml?: string;
+  /**
+   * Set when the cloud was asked first, turned the request down, and the work then ran
+   * on the device (PREFER_IN_CLOUD falling back). The prompt did leave the laptop.
+   */
+  refusedBeforeFallback?: { status: number };
 }
 
 export type DeviceStatus = 'available' | 'downloadable' | 'downloading' | 'unavailable';

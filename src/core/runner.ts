@@ -87,16 +87,33 @@ export async function runTask(ctx: RunContext, spec: PromptSpec): Promise<RunRes
       search: spec.search,
     });
 
-    if (result.source === 'in_cloud' && (task.touchesLearnerData || resolved.mode === 'only_on_device')) {
+    const learnerOnly = task.touchesLearnerData || resolved.mode === 'only_on_device';
+    const refused = result.refusedBeforeFallback;
+    if (refused && learnerOnly) {
+      // Cannot happen with the SDK's ONLY_ON_DEVICE mode. If it ever does, the ledger must show what left.
+      const sent = `${spec.system}\n\n${spec.prompt}`;
+      const entry = await finish({
+        outcome: 'error',
+        source: result.source,
+        sentChars: sent.length,
+        sentText: sent,
+        note: `A learner-data request reached the cloud (HTTP ${refused.status}) before running on this laptop.`,
+      });
+      return { status: 'error', kind: 'invariant', message: ERROR_TEXT.invariant, entry };
+    }
+    if (result.source === 'in_cloud' && learnerOnly) {
       return invariant('The engine reported a cloud run for an on-device-only request.');
     }
 
-    const sent = result.source === 'in_cloud' ? `${spec.system}\n\n${spec.prompt}` : undefined;
+    const sent = result.source === 'in_cloud' || refused ? `${spec.system}\n\n${spec.prompt}` : undefined;
     const entry = await finish({
       outcome: 'ok',
       source: result.source,
       sentChars: sent?.length ?? 0,
       sentText: sent,
+      note: refused
+        ? `The cloud refused it first (HTTP ${refused.status}), so it ran on this laptop. The text was still sent.`
+        : undefined,
     });
     return {
       status: 'ok',
