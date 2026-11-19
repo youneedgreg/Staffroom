@@ -62,3 +62,12 @@ pre { white-space: pre-wrap; background: var(--soft); padding: 0.5rem; border-ra
 .card p { margin: 0.25rem 0; }
 .badge { border: 1px solid var(--good); color: var(--good); border-radius: 999px; padding: 0.1rem 0.6rem; font-weight: 600; }
 .fatal { padding: 2rem; }
+h4 { font-size: 1rem; margin: 0 0 0.35rem; }
+.groups li { margin: 0.35rem 0; }
+.panel { border: 1px solid var(--line); border-radius: 8px; padding: 1rem; margin-top: 1rem; display: grid; gap: 1rem; }
+.outbound { border: 2px solid var(--accent); border-radius: 8px; padding: 1rem; font-size: 1.05rem; }
+.outbound .fixed { background: var(--soft); padding: 0.6rem 0.75rem; border-radius: 6px; margin: 0.25rem 0 0.75rem; }
+.outbound textarea { font-size: 1.05rem; margin-top: 0.25rem; }
+.outbound .pass { color: var(--good); font-weight: 600; margin: 0.5rem 0; }
+.outbound .fail { color: var(--bad); font-weight: 600; margin: 0.5rem 0; }
+.outbound .fail ul { margin: 0.25rem 0; padding-left: 1.25rem; }

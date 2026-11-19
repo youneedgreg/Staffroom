@@ -59,6 +59,33 @@ try {
     const groups = await page.locator('[data-testid="groups"] li').allTextContents();
     check('support lists the fractions group first', groups[0]?.startsWith('Fractions: 10 learners (about a third'), groups[0]);
 
+    // The Day-2 gate: a name in the phrase switches "Ask the cloud" off; a clean phrase sends and is logged.
+    await page.click('[data-testid="groups"] li >> nth=0 >> text=Plan support');
+    await page.waitForSelector('[data-testid="outbound"]');
+    check('outbound preview shows the fixed question',
+      (await text(page, 'outbound-fixed')).includes('sub-strand "Fractions"'));
+    await page.click('text=Sum up the difficulty');
+    await page.waitForFunction(() => document.querySelector('[data-testid="outbound-free"]')?.value !== '');
+    const phrase = await page.inputValue('[data-testid="outbound-free"]');
+    check('sum up fills the phrase on this laptop', phrase === 'mixing up the steps when working with fractions', phrase);
+    check('a clean phrase passes the check', (await text(page, 'verdict')).startsWith('Checked against your class list: 0 learner names'));
+    check('"Ask the cloud" is on for a clean phrase', await page.isEnabled('[data-testid="ask"]'));
+    await page.fill('[data-testid="outbound-free"]', `${phrase}, like Kevin`);
+    check('a name in the phrase fails the check', (await text(page, 'verdict')).includes(`"Kevin" is a learner's name in this class`));
+    check('a name in the phrase switches "Ask the cloud" off', await page.isDisabled('[data-testid="ask"]'));
+    check('the reason is shown', (await text(page, 'ask-reason')).startsWith('Fix what is listed above first'));
+    await page.fill('[data-testid="outbound-free"]', phrase);
+    check('removing the name switches it back on', await page.isEnabled('[data-testid="ask"]'));
+    await page.click('[data-testid="ask"]');
+    await page.waitForSelector('[data-testid="plan-activities"] li');
+    check('the plan comes back with three activities', (await page.locator('[data-testid="plan-activities"] li').count()) === 3);
+    await page.click('a[href="#/ledger"]');
+    await page.waitForSelector('tbody tr');
+    check('ledger: the plan ran in the cloud', (await page.textContent('tbody tr >> nth=0 >> td:nth-child(4)')) === 'In the cloud');
+    const sentText = await page.textContent('tbody tr >> nth=0 >> pre');
+    check('ledger: the exact text sent includes the phrase', sentText.includes(`The difficulty they share: ${phrase}.`));
+    check('ledger: the exact text sent has no learner name', !/Kevin|Amani|Faith/.test(sentText));
+
     await page.click('a[href="#/selftest"]');
     await page.click('text=Run the self-test');
     await page.waitForFunction(() => document.querySelectorAll('[data-testid="selftest"] tbody tr').length === 6);
@@ -70,8 +97,8 @@ try {
     await page.click('a[href="#/ledger"]');
     await page.waitForSelector('[data-testid="tile-learner-cloud"]');
     check('ledger after the self-test: still 0 learner tasks in the cloud', (await text(page, 'tile-learner-cloud')) === '0');
-    check('ledger after the self-test: 2 cloud runs with text sent',
-      (await text(page, 'tile-in-cloud')) === '2' && Number(await text(page, 'tile-chars')) > 500);
+    check('ledger after the self-test: 3 cloud runs with text sent (the Support plan and two self-test rows)',
+      (await text(page, 'tile-in-cloud')) === '3' && Number(await text(page, 'tile-chars')) > 500);
     check('ledger after the self-test: 0 requests refused by the cloud', (await text(page, 'tile-refused')) === '0');
 
     // 2. Everything survives a reload, and the app starts with no connection.
@@ -107,7 +134,40 @@ try {
     await page.waitForSelector('[data-testid="tile-errors"]');
     check('ledger: 1 failure, 0 cloud runs, 0 characters sent',
       (await text(page, 'tile-errors')) === '1' && (await text(page, 'tile-in-cloud')) === '0' && (await text(page, 'tile-chars')) === '0');
+    await page.click('a[href="#/support"]');
+    await page.click('[data-testid="groups"] li >> nth=0 >> text=Plan support');
+    await page.click('text=Sum up the difficulty');
+    await page.waitForSelector('[data-testid="support-problem"]');
+    check('support: sum up refuses with no on-device model', (await text(page, 'support-problem')).includes('never sent to the cloud instead'));
     await context.close();
+  }
+
+  // 4. The other two reasons "Ask the cloud" is switched off: a strict school policy, and no connection.
+  {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await page.goto(`${BASE}/?engine=demo&policy=strict`);
+    await page.click('text=Load the invented sample class');
+    await page.click('a[href="#/support"]');
+    await page.click('[data-testid="groups"] li >> nth=0 >> text=Plan support');
+    await page.waitForSelector('[data-testid="outbound"]');
+    check('strict policy: "Ask the cloud" is off', await page.isDisabled('[data-testid="ask"]'));
+    check('strict policy: the school\'s reason is shown', (await text(page, 'ask-reason')).includes('Your school allows nothing to leave the laptop'));
+    await context.close();
+
+    const context2 = await browser.newContext();
+    const page2 = await context2.newPage();
+    await page2.goto(`${BASE}/?engine=demo`);
+    await page2.click('text=Load the invented sample class');
+    await page2.click('a[href="#/support"]');
+    await page2.click('[data-testid="groups"] li >> nth=0 >> text=Plan support');
+    await page2.waitForSelector('[data-testid="outbound"]');
+    await context2.setOffline(true);
+    await page2.waitForFunction(() => !navigator.onLine);
+    await page2.waitForSelector('[data-testid="ask-reason"]');
+    check('offline: "Ask the cloud" is off', await page2.isDisabled('[data-testid="ask"]'));
+    check('offline: the reason is shown', (await text(page2, 'ask-reason')).startsWith('You are offline'));
+    await context2.close();
   }
 } finally {
   await browser.close();
