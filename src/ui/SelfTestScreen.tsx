@@ -8,7 +8,7 @@ import { CBC_G5_MATHS as pack } from '../core/curriculum';
 import { askPlan, draftRemark, summariseDifficulty, writeParentNote, type Failure } from '../core/flows';
 import { strugglingGroups } from '../core/groups';
 import { ranText, type LedgerEntry } from '../core/ledger';
-import { resolveMode, TASKS, type Mode, type Settings, type TaskId } from '../core/policy';
+import { MODE_TEXT, resolveMode, TASKS, type Mode, type Settings, type TaskId } from '../core/policy';
 import { lessonIdeaPrompt, plainWordsPrompt } from '../core/prompts';
 import { runTask, type RunContext } from '../core/runner';
 import { sampleClass } from '../core/sample';
@@ -22,14 +22,6 @@ interface Row {
   result: string;
   ok: boolean;
 }
-
-const MODE_TEXT: Record<Mode | 'disabled', string> = {
-  only_on_device: 'ONLY_ON_DEVICE',
-  prefer_on_device: 'PREFER_ON_DEVICE',
-  prefer_in_cloud: 'PREFER_IN_CLOUD',
-  only_in_cloud: 'ONLY_IN_CLOUD',
-  disabled: 'switched off',
-};
 
 function failureText(f: Failure): string {
   if (f.status === 'error') return f.message;

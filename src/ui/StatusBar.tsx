@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { summarise, type LedgerEntry } from '../core/ledger';
-import type { Settings } from '../core/policy';
+import { MODE_TEXT, resolveMode, TASK_IDS, TASKS, type Settings } from '../core/policy';
 import type { DeviceStatus, Engine } from '../engine/engine';
 
 const DEVICE_TEXT: Record<DeviceStatus, string> = {
@@ -72,6 +72,48 @@ export function StatusBar({ engine, simulatedReason, device, online, settings, l
         </p>
       )}
       {error && <p className="bad" role="alert">{error}</p>}
+      <TaskMap settings={settings} />
     </section>
+  );
+}
+
+/**
+ * The mode table from the product spec, worked out live with `resolveMode`. When Remote Config
+ * changes the school policy or a task's mode, this changes with no reload.
+ */
+function TaskMap({ settings }: { settings: Settings }) {
+  return (
+    <details className="task-map" data-testid="task-map">
+      <summary>Which task runs where</summary>
+      <div className="scroll">
+        <table>
+          <caption>
+            Worked out now from your school's settings. Cloud model: <code data-testid="cloud-model">{settings.cloudModel}</code>.
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Task</th>
+              <th scope="col">Holds learner data</th>
+              <th scope="col">Mode</th>
+              <th scope="col">Why</th>
+            </tr>
+          </thead>
+          <tbody>
+            {TASK_IDS.map((id) => {
+              const r = resolveMode(id, settings);
+              const learner = TASKS[id].touchesLearnerData;
+              return (
+                <tr key={id} data-testid={`task-${id}`}>
+                  <th scope="row">{TASKS[id].label}</th>
+                  <td>{learner ? 'Yes' : 'No'}</td>
+                  <td><code data-testid={`task-${id}-mode`}>{MODE_TEXT[r.mode]}</code></td>
+                  <td>{learner ? `${TASKS[id].why} ${r.reason}` : r.reason}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </details>
   );
 }
