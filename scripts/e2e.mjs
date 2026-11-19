@@ -86,10 +86,10 @@ try {
     check('ledger: the exact text sent includes the phrase', sentText.includes(`The difficulty they share: ${phrase}.`));
     check('ledger: the exact text sent has no learner name', !/Kevin|Amani|Faith/.test(sentText));
 
-    // Day 3: the plan panel is kept after leaving the tab, then ten parent notes are written on the laptop.
+    // Day 3: the group stays open and the plan is kept after leaving the tab, then ten parent notes are written on the laptop.
     await page.click('a[href="#/support"]');
-    await page.click('[data-testid="groups"] li >> nth=0 >> text=Plan support');
     await page.waitForSelector('[data-testid="plan"]');
+    check('back on Support after the ledger: the group is still open', (await page.textContent('[data-testid="groups"] li >> nth=0 >> button')) === 'Close');
     check('plan panel: three activities after coming back to the tab', (await page.locator('[data-testid="plan-activities"] li').count()) === 3);
     check('plan panel: "Check after two weeks" is shown', (await text(page, 'plan-check')).startsWith('Give five short questions'));
     check('plan panel: "At home" is shown', (await text(page, 'plan-home')).startsWith('Ask the child to share'));
@@ -111,6 +111,13 @@ try {
     await page.waitForSelector('[data-testid="tile-learner-cloud"]');
     check('ledger after the notes: still 1 cloud run and 0 learner tasks in the cloud',
       (await text(page, 'tile-in-cloud')) === '1' && (await text(page, 'tile-learner-cloud')) === '0');
+    // Coming back to Support keeps the open group, the phrase and the notes.
+    await page.click('a[href="#/support"]');
+    await page.waitForSelector('[data-testid="group-panel"]');
+    check('back on Support: the same group is still open', (await page.locator('[data-testid="group-panel"]').count()) === 1);
+    check('back on Support: the phrase is kept', (await page.inputValue('[data-testid="outbound-free"]')) === phrase);
+    check('back on Support: the ten notes are kept', (await page.locator('[data-testid="notes"] li').count()) === 10);
+    check('back on Support: the first note is unchanged', (await page.inputValue('[data-testid="notes"] li >> nth=0 >> textarea')) === firstNote);
 
     await page.click('a[href="#/selftest"]');
     await page.click('text=Run the self-test');
@@ -224,11 +231,10 @@ try {
     check('Route A: one send so far, refused, nothing retried on its own',
       (await text(page, 'tile-refused')) === '1' && (await text(page, 'tile-in-cloud')) === '0' && (await page.locator('tbody tr').count()) === 1);
     await page.click('a[href="#/support"]');
-    await page.click('[data-testid="groups"] li >> nth=0 >> text=Plan support');
-    // Leaving the tab clears the offer (panel state resets); ask again to get it back.
-    await page.fill('[data-testid="outbound-free"]', 'adding the tops and the bottoms');
-    await page.click('[data-testid="ask"]');
+    // The offer survives the trip to the ledger; nothing was sent while away.
     await page.waitForSelector('[data-testid="ask-plain"]');
+    check('Route A: the offer is still there after leaving the tab', (await page.locator('[data-testid="route-a"]').count()) === 1);
+    check('Route A: the phrase is kept too', (await page.inputValue('[data-testid="outbound-free"]')) === 'adding the tops and the bottoms');
     await page.click('[data-testid="ask-plain"]');
     await page.waitForSelector('[data-testid="plan"]');
     check('Route A: the plain plan has three activities', (await page.locator('[data-testid="plan-activities"] li').count()) === 3);
@@ -237,10 +243,10 @@ try {
     check('Route A: the offer is gone', (await page.locator('[data-testid="route-a"]').count()) === 0);
     await page.click('a[href="#/ledger"]');
     await page.waitForSelector('tbody tr');
-    check('Route A ledger: two refused, one answered, 0 learner tasks in the cloud',
-      (await text(page, 'tile-refused')) === '2' && (await text(page, 'tile-in-cloud')) === '1' && (await text(page, 'tile-learner-cloud')) === '0');
+    check('Route A ledger: one refused, one answered, 0 learner tasks in the cloud',
+      (await text(page, 'tile-refused')) === '1' && (await text(page, 'tile-in-cloud')) === '1' && (await text(page, 'tile-learner-cloud')) === '0');
     const sent = await page.locator('tbody tr pre').allTextContents();
-    check('Route A ledger: every send carries the same text', sent.length === 3 && new Set(sent).size === 1, `${sent.length} rows`);
+    check('Route A ledger: both sends carry the same text', sent.length === 2 && new Set(sent).size === 1, `${sent.length} rows`);
     await context.close();
   }
 } finally {
