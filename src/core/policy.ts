@@ -82,6 +82,15 @@ export const TASKS: Record<TaskId, TaskSpec> = {
 
 export const TASK_IDS = Object.keys(TASKS) as TaskId[];
 
+/** The SDK's names for the modes, as the screens and the README print them. */
+export const MODE_TEXT: Record<Mode | 'disabled', string> = {
+  only_on_device: 'ONLY_ON_DEVICE',
+  prefer_on_device: 'PREFER_ON_DEVICE',
+  prefer_in_cloud: 'PREFER_IN_CLOUD',
+  only_in_cloud: 'ONLY_IN_CLOUD',
+  disabled: 'switched off',
+};
+
 /** `standard`: curriculum questions may reach the cloud. `strict`: nothing leaves the laptop. */
 export type SchoolPolicy = 'standard' | 'strict';
 

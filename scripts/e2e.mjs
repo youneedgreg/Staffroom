@@ -36,8 +36,22 @@ try {
     page.on('pageerror', (e) => errors.push(String(e)));
     await page.goto(`${BASE}/?engine=demo`);
     await page.click('text=Load the invented sample class');
-    check('sample class loads with 30 learners', (await page.locator('tbody tr').count()) === 30);
+    check('sample class loads with 30 learners', (await page.locator('main tbody tr').count()) === 30);
     check('status bar shows the model as ready', (await text(page, 'device-status')) === 'ready');
+    // The live mode table: closed until opened, one row per task.
+    const modesOf = (p) => p.evaluate(() =>
+      Object.fromEntries([...document.querySelectorAll('[data-testid^="task-"][data-testid$="-mode"]')]
+        .map((e) => [e.dataset.testid.slice(5, -5), e.textContent])));
+    check('task map: closed until opened', (await page.getAttribute('[data-testid="task-map"]', 'open')) === null);
+    await page.click('[data-testid="task-map"] summary');
+    check('task map: seven tasks', (await page.locator('[data-testid="task-map"] tbody tr').count()) === 7);
+    const standard = await modesOf(page);
+    check('task map, standard policy: the four learner tasks are ONLY_ON_DEVICE',
+      ['remark', 'difficulty', 'marksheet', 'personalise'].every((t) => standard[t] === 'ONLY_ON_DEVICE'), JSON.stringify(standard));
+    check('task map, standard policy: plan, starter and plain words use their own modes',
+      standard.plan === 'ONLY_IN_CLOUD' && standard.lessonIdea === 'PREFER_IN_CLOUD' && standard.plainWords === 'PREFER_ON_DEVICE');
+    check('task map: names the cloud model', (await text(page, 'cloud-model')).length > 0);
+    await page.click('[data-testid="task-map"] summary');
 
     await page.click('a[href="#/reports"]');
     await page.click('text=Draft all remarks');
@@ -86,9 +100,9 @@ try {
     await page.waitForSelector('[data-testid="plan-activities"] li');
     check('the plan comes back with three activities', (await page.locator('[data-testid="plan-activities"] li').count()) === 3);
     await page.click('a[href="#/ledger"]');
-    await page.waitForSelector('tbody tr');
-    check('ledger: the plan ran in the cloud', (await page.textContent('tbody tr >> nth=0 >> td:nth-child(4)')) === 'In the cloud');
-    const sentText = await page.textContent('tbody tr >> nth=0 >> pre');
+    await page.waitForSelector('main tbody tr');
+    check('ledger: the plan ran in the cloud', (await page.textContent('main tbody tr >> nth=0 >> td:nth-child(4)')) === 'In the cloud');
+    const sentText = await page.textContent('main tbody tr >> nth=0 >> pre');
     check('ledger: the exact text sent includes the phrase', sentText.includes(`The difficulty they share: ${phrase}.`));
     check('ledger: the exact text sent has no learner name', !/Kevin|Amani|Faith/.test(sentText));
 
@@ -211,6 +225,13 @@ try {
     check('strict policy: "Ask the cloud" is off', await page.isDisabled('[data-testid="ask"]'));
     check('strict policy: the school\'s reason is shown', (await text(page, 'ask-reason')).includes('Your school allows nothing to leave the laptop'));
     check('strict policy: the starter activity runs on this laptop', (await quick(page, 'lessonIdea')) === 'On this laptop');
+    await page.click('[data-testid="task-map"] summary');
+    const strict = await page.evaluate(() =>
+      Object.fromEntries([...document.querySelectorAll('[data-testid^="task-"][data-testid$="-mode"]')]
+        .map((e) => [e.dataset.testid.slice(5, -5), e.textContent])));
+    check('task map, strict policy: the plan is switched off', strict.plan === 'switched off', strict.plan);
+    check('task map, strict policy: everything else is ONLY_ON_DEVICE',
+      Object.entries(strict).filter(([t]) => t !== 'plan').every(([, m]) => m === 'ONLY_ON_DEVICE'), JSON.stringify(strict));
     await context.close();
 
     // The Day-4 gate in the simulated engine: with no connection the starter still answers, on the laptop.
@@ -261,7 +282,7 @@ try {
     await page.click('a[href="#/ledger"]');
     await page.waitForSelector('[data-testid="tile-refused"]');
     check('Route A: one send so far, refused, nothing retried on its own',
-      (await text(page, 'tile-refused')) === '1' && (await text(page, 'tile-in-cloud')) === '0' && (await page.locator('tbody tr').count()) === 1);
+      (await text(page, 'tile-refused')) === '1' && (await text(page, 'tile-in-cloud')) === '0' && (await page.locator('main tbody tr').count()) === 1);
     await page.click('a[href="#/support"]');
     // The offer survives the trip to the ledger; nothing was sent while away.
     await page.waitForSelector('[data-testid="ask-plain"]');
@@ -274,10 +295,10 @@ try {
     check('Route A: it says there are no sources to check', (await text(page, 'plan-no-sources')).includes('without web sources'));
     check('Route A: the offer is gone', (await page.locator('[data-testid="route-a"]').count()) === 0);
     await page.click('a[href="#/ledger"]');
-    await page.waitForSelector('tbody tr');
+    await page.waitForSelector('main tbody tr');
     check('Route A ledger: one refused, one answered, 0 learner tasks in the cloud',
       (await text(page, 'tile-refused')) === '1' && (await text(page, 'tile-in-cloud')) === '1' && (await text(page, 'tile-learner-cloud')) === '0');
-    const sent = await page.locator('tbody tr pre').allTextContents();
+    const sent = await page.locator('main tbody tr pre').allTextContents();
     check('Route A ledger: both sends carry the same text', sent.length === 2 && new Set(sent).size === 1, `${sent.length} rows`);
     await context.close();
   }
