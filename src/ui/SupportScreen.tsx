@@ -10,7 +10,7 @@
  * asked whether to send the same previewed text again without web sources, and the answer is
  * labelled "No web sources". The Privacy ledger shows both sends.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, type Dispatch, type SetStateAction } from 'react';
 import { runBatch, type BatchProgress } from '../core/batch';
 import { askPlan, summariseDifficulty, writeParentNote, type Failure } from '../core/flows';
 import { checkOutbound, describeHit } from '../core/guard';
@@ -31,10 +31,23 @@ interface Props {
   library: PlanLibrary | null;
   plans: Plan[];
   savePlans: (update: (current: Plan[]) => Plan[]) => void;
+  /** Kept by App, so the panel survives a trip to another tab and a batch keeps writing. */
+  memory: SupportMemory;
+  setMemory: Dispatch<SetStateAction<SupportMemory>>;
 }
 
+/** Everything the Support screen remembers while the app is open. Not saved: a reload clears it. */
+export interface SupportMemory {
+  /** Group state keyed by sub-strand id. */
+  states: Record<string, GroupState>;
+  /** The open group's sub-strand id. */
+  openId: string | null;
+}
+
+export const EMPTY_SUPPORT: SupportMemory = { states: {}, openId: null };
+
 /** What the screen remembers for one group, keyed by sub-strand id. */
-interface GroupState {
+export interface GroupState {
   /** The editable difficulty phrase: the only free text in the question. */
   free: string;
   /** Learner id to parent note, for the plan on screen. Kept until a new plan arrives. */
@@ -44,6 +57,8 @@ interface GroupState {
   /** Route A: the grounded request was refused, so offer to send it without web sources. */
   offerPlain?: boolean;
   progress?: BatchProgress;
+  /** Stops the parent-note batch. Set only while it runs. */
+  stop?: () => void;
 }
 
 type Patch = Partial<GroupState> | ((current: GroupState) => Partial<GroupState>);
@@ -57,9 +72,9 @@ export function failureText(f: Failure): string {
   return f.hits.map(describeHit).join(' ');
 }
 
-export function SupportScreen({ classData, pack, ctx, settings, online, plans, savePlans }: Props) {
-  const [states, setStates] = useState<Record<string, GroupState>>({});
-  const [openId, setOpenId] = useState<string | null>(null);
+export function SupportScreen({ classData, pack, ctx, settings, online, plans, savePlans, memory, setMemory }: Props) {
+  const { states, openId } = memory;
+  const setOpenId = (id: string | null) => setMemory((m) => ({ ...m, openId: id }));
 
   if (!classData || !pack || !ctx) {
     return (
@@ -74,9 +89,10 @@ export function SupportScreen({ classData, pack, ctx, settings, online, plans, s
   const open = groups.find((g) => g.subStrand.id === openId) ?? null;
   // Functional so a batch of parent notes can add one note at a time without losing the others.
   const update = (id: string, patch: Patch) =>
-    setStates((all) => {
-      const current = { ...EMPTY, ...all[id] };
-      return { ...all, [id]: { ...current, ...(typeof patch === 'function' ? patch(current) : patch) } };
+    setMemory((m) => {
+      const current = { ...EMPTY, ...m.states[id] };
+      const next = { ...current, ...(typeof patch === 'function' ? patch(current) : patch) };
+      return { ...m, states: { ...m.states, [id]: next } };
     });
 
   return (
@@ -140,7 +156,6 @@ function GroupPanel({ group, pack, classData, ctx, settings, online, state, upda
   const verdict = useMemo(() => checkOutbound(message, ctx.guard), [message, ctx.guard]);
   const policy = resolveMode('plan', settings);
   const parsed = useMemo(() => (lastPlan ? parsePlan(lastPlan.answer) : null), [lastPlan]);
-  const stopper = useRef<AbortController | null>(null);
 
   // 1. Sum up the difficulty on this laptop.
   const sumUp = async () => {
@@ -187,8 +202,7 @@ function GroupPanel({ group, pack, classData, ctx, settings, online, state, upda
     if (!lastPlan || !parsed) return;
     const home = parsed.home || lastPlan.answer;
     const controller = new AbortController();
-    stopper.current = controller;
-    update({ busy: 'writing', problem: undefined, notes: {}, progress: undefined });
+    update({ busy: 'writing', problem: undefined, notes: {}, progress: undefined, stop: () => controller.abort() });
     let problem: string | undefined;
     const outcome = await runBatch(
       group.learners,
@@ -205,9 +219,9 @@ function GroupPanel({ group, pack, classData, ctx, settings, online, state, upda
       },
       { signal: controller.signal, onProgress: (progress) => update({ progress }) },
     );
-    stopper.current = null;
     update({
       busy: undefined,
+      stop: undefined,
       progress: outcome,
       problem: outcome.failed > 0 || (outcome.stopped && problem) ? problem : undefined,
     });
@@ -326,7 +340,7 @@ function GroupPanel({ group, pack, classData, ctx, settings, online, state, upda
                 {state.busy === 'writing' ? 'Writing…' : `Write the parent notes (${group.learners.length})`}
               </button>
               {state.busy === 'writing' && (
-                <button type="button" onClick={() => stopper.current?.abort()}>Stop</button>
+                <button type="button" onClick={() => state.stop?.()}>Stop</button>
               )}
               {state.progress && (
                 <span role="status" data-testid="notes-progress">

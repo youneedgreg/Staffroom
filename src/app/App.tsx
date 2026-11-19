@@ -10,7 +10,7 @@ import { LedgerScreen } from '../ui/LedgerScreen';
 import { ReportsScreen } from '../ui/ReportsScreen';
 import { SelfTestScreen } from '../ui/SelfTestScreen';
 import { StatusBar } from '../ui/StatusBar';
-import { SupportScreen } from '../ui/SupportScreen';
+import { EMPTY_SUPPORT, SupportScreen, type SupportMemory } from '../ui/SupportScreen';
 import type { Boot } from './boot';
 
 const TABS = [
@@ -37,6 +37,11 @@ export function App({ boot }: { boot: Boot }) {
   const [settings, setSettings] = useState<Settings>(boot.settings);
   const [device, setDevice] = useState<DeviceStatus>('unavailable');
   const [online, setOnline] = useState<boolean>(navigator.onLine);
+  // Held here, not in the Support screen, so leaving the tab keeps the phrase, the notes and the Route A offer.
+  const [support, setSupport] = useState<SupportMemory>(EMPTY_SUPPORT);
+  // A different class (or none) means different learners: drop the notes written for the old one.
+  const classId = classData?.id ?? null;
+  useEffect(() => setSupport(EMPTY_SUPPORT), [classId]);
 
   useEffect(() => {
     const onHash = () => setTab(tabFromHash());
@@ -112,6 +117,7 @@ export function App({ boot }: { boot: Boot }) {
     setRemarks({});
     setPlans([]);
     setLedger([]);
+    setSupport(EMPTY_SUPPORT);
   }, [repo]);
 
   const ctx: RunContext | null = useMemo(() => {
@@ -166,6 +172,8 @@ export function App({ boot }: { boot: Boot }) {
             library={boot.plans}
             plans={plans}
             savePlans={savePlans}
+            memory={support}
+            setMemory={setSupport}
           />
         )}
         {tab === 'ledger' && <LedgerScreen ledger={ledger} onClear={clearLedger} />}
