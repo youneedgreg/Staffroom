@@ -25,6 +25,7 @@ export function LedgerScreen({ ledger, onClear }: { ledger: LedgerEntry[]; onCle
         </div>
         <div className="tile"><dt>Ran on this laptop</dt><dd data-testid="tile-on-device">{s.onDevice}</dd></div>
         <div className="tile"><dt>Ran in the cloud</dt><dd data-testid="tile-in-cloud">{s.inCloud}</dd></div>
+        <div className="tile"><dt>Sent to the cloud, refused</dt><dd data-testid="tile-refused">{s.refusedInCloud}</dd></div>
         <div className="tile"><dt>Characters sent</dt><dd data-testid="tile-chars">{s.charsSent}</dd></div>
         <div className="tile"><dt>Blocked by the name check</dt><dd>{s.blocked}</dd></div>
         <div className="tile"><dt>Failed</dt><dd data-testid="tile-errors">{s.errors}</dd></div>

@@ -35,6 +35,11 @@ export function leftLaptop(e: LedgerEntry): boolean {
   return e.source === 'in_cloud' || e.sentChars > 0;
 }
 
+/** True when the text was sent and the cloud turned it down (whatever ran afterwards). */
+export function refusedByCloud(e: LedgerEntry): boolean {
+  return (e.source === 'in_cloud' && e.outcome === 'error') || (e.source === 'on_device' && e.sentChars > 0);
+}
+
 /** The "Ran" wording used on the ledger and self-test screens. */
 export function ranText(e: LedgerEntry | null | undefined): string {
   if (!e?.source) return 'Did not run';
@@ -45,7 +50,10 @@ export function ranText(e: LedgerEntry | null | undefined): string {
 export interface LedgerSummary {
   total: number;
   onDevice: number;
+  /** Requests the cloud actually answered. Refused ones are counted in `refusedInCloud`. */
   inCloud: number;
+  /** Requests sent to the cloud and turned down. The text still left the laptop. */
+  refusedInCloud: number;
   blocked: number;
   disabled: number;
   errors: number;
@@ -59,6 +67,7 @@ export function summarise(entries: LedgerEntry[]): LedgerSummary {
     total: entries.length,
     onDevice: 0,
     inCloud: 0,
+    refusedInCloud: 0,
     blocked: 0,
     disabled: 0,
     errors: 0,
@@ -70,7 +79,8 @@ export function summarise(entries: LedgerEntry[]): LedgerSummary {
     else if (e.outcome === 'disabled') s.disabled += 1;
     else if (e.outcome === 'error') s.errors += 1;
     if (e.source === 'on_device') s.onDevice += 1;
-    if (e.source === 'in_cloud') s.inCloud += 1;
+    if (e.source === 'in_cloud' && e.outcome !== 'error') s.inCloud += 1;
+    if (refusedByCloud(e)) s.refusedInCloud += 1;
     if (leftLaptop(e)) {
       s.charsSent += e.sentChars;
       if (TASKS[e.task].touchesLearnerData) s.learnerTasksInCloud += 1;

@@ -72,6 +72,7 @@ try {
     check('ledger after the self-test: still 0 learner tasks in the cloud', (await text(page, 'tile-learner-cloud')) === '0');
     check('ledger after the self-test: 2 cloud runs with text sent',
       (await text(page, 'tile-in-cloud')) === '2' && Number(await text(page, 'tile-chars')) > 500);
+    check('ledger after the self-test: 0 requests refused by the cloud', (await text(page, 'tile-refused')) === '0');
 
     // 2. Everything survives a reload, and the app starts with no connection.
     await page.evaluate(() => navigator.serviceWorker.ready);

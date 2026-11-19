@@ -161,7 +161,7 @@ describe('runTask: the curriculum question', () => {
     expect(entry.sentText).toBe(`${spec.system}\n\n${spec.prompt}`);
     expect(entry.sentChars).toBe(entry.sentText!.length);
     expect(entry.note).toContain('HTTP 429');
-    expect(summarise(ledger)).toMatchObject({ charsSent: entry.sentChars, learnerTasksInCloud: 0 });
+    expect(summarise(ledger)).toMatchObject({ inCloud: 0, refusedInCloud: 1, charsSent: entry.sentChars, learnerTasksInCloud: 0 });
     expect(ranText(entry)).toBe('Sent to the cloud, refused');
   });
 
@@ -179,6 +179,7 @@ describe('runTask: the curriculum question', () => {
     expect(summarise(ledger)).toMatchObject({
       onDevice: 1,
       inCloud: 0,
+      refusedInCloud: 1,
       charsSent: entry.sentChars,
       learnerTasksInCloud: 0,
     });
