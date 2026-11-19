@@ -86,6 +86,32 @@ try {
     check('ledger: the exact text sent includes the phrase', sentText.includes(`The difficulty they share: ${phrase}.`));
     check('ledger: the exact text sent has no learner name', !/Kevin|Amani|Faith/.test(sentText));
 
+    // Day 3: the plan panel is kept after leaving the tab, then ten parent notes are written on the laptop.
+    await page.click('a[href="#/support"]');
+    await page.click('[data-testid="groups"] li >> nth=0 >> text=Plan support');
+    await page.waitForSelector('[data-testid="plan"]');
+    check('plan panel: three activities after coming back to the tab', (await page.locator('[data-testid="plan-activities"] li').count()) === 3);
+    check('plan panel: "Check after two weeks" is shown', (await text(page, 'plan-check')).startsWith('Give five short questions'));
+    check('plan panel: "At home" is shown', (await text(page, 'plan-home')).startsWith('Ask the child to share'));
+    check('plan panel: the cloud badge is shown',
+      (await page.locator('[data-testid="plan"] .badge').first().textContent()) === 'Answered in the cloud from a question with no learner in it');
+    check('plan panel: no "No web sources" badge on a grounded plan', (await page.locator('[data-testid="no-sources-badge"]').count()) === 0);
+    const link = page.locator('[data-testid="plan-sources"] a');
+    check('plan panel: one source link that opens in a new tab',
+      (await link.count()) === 1 && (await link.getAttribute('target')) === '_blank' && (await link.getAttribute('rel')).includes('noopener'));
+    await page.click('[data-testid="write-notes"]');
+    await page.waitForFunction(() => document.querySelector('[data-testid="notes-progress"]')?.textContent?.includes('10 of 10 notes written'));
+    check('parent notes: ten written', (await page.locator('[data-testid="notes"] li').count()) === 10);
+    check('parent notes: each says it was written on this laptop',
+      (await page.locator('[data-testid="notes"] .badge:has-text("Written on this laptop")').count()) === 10);
+    const firstNote = await page.inputValue('[data-testid="notes"] li >> nth=0 >> textarea');
+    check('parent notes: the greeting is written by Staffroom, not the model',
+      firstNote.startsWith('Dear parent or guardian of ') && !/Mrs\.|regards|\[Teacher\]/i.test(firstNote), firstNote.split('\n')[0]);
+    await page.click('a[href="#/ledger"]');
+    await page.waitForSelector('[data-testid="tile-learner-cloud"]');
+    check('ledger after the notes: still 1 cloud run and 0 learner tasks in the cloud',
+      (await text(page, 'tile-in-cloud')) === '1' && (await text(page, 'tile-learner-cloud')) === '0');
+
     await page.click('a[href="#/selftest"]');
     await page.click('text=Run the self-test');
     await page.waitForFunction(() => document.querySelectorAll('[data-testid="selftest"] tbody tr').length === 6);
@@ -139,6 +165,14 @@ try {
     await page.click('text=Sum up the difficulty');
     await page.waitForSelector('[data-testid="support-problem"]');
     check('support: sum up refuses with no on-device model', (await text(page, 'support-problem')).includes('never sent to the cloud instead'));
+    await page.fill('[data-testid="outbound-free"]', 'adding the tops and the bottoms');
+    await page.click('[data-testid="ask"]');
+    await page.waitForSelector('[data-testid="write-notes"]');
+    await page.click('[data-testid="write-notes"]');
+    await page.waitForFunction(() => document.querySelector('[data-testid="notes-progress"]')?.textContent?.includes('notes written'));
+    check('parent notes: refused with no on-device model, not sent to the cloud',
+      (await text(page, 'support-problem')).includes('never sent to the cloud instead') && (await text(page, 'notes-progress')).startsWith('0 of 10'));
+    check('parent notes: none shown', (await page.locator('[data-testid="notes"] li').count()) === 0);
     await context.close();
   }
 
@@ -168,6 +202,46 @@ try {
     check('offline: "Ask the cloud" is off', await page2.isDisabled('[data-testid="ask"]'));
     check('offline: the reason is shown', (await text(page2, 'ask-reason')).startsWith('You are offline'));
     await context2.close();
+  }
+
+  // 5. Route A: the grounded plan is refused (as on the free tier). Nothing is retried until the teacher says yes.
+  {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await page.goto(`${BASE}/?engine=demo&grounding=refused`);
+    await page.click('text=Load the invented sample class');
+    await page.click('a[href="#/support"]');
+    await page.click('[data-testid="groups"] li >> nth=0 >> text=Plan support');
+    await page.fill('[data-testid="outbound-free"]', 'adding the tops and the bottoms');
+    await page.click('[data-testid="ask"]');
+    await page.waitForSelector('[data-testid="route-a"]');
+    const offer = await text(page, 'route-a');
+    check('Route A: the refusal says the question did leave the laptop', offer.includes('The question did leave this laptop'));
+    check('Route A: it offers to ask without web sources', offer.includes('Ask the cloud for a plan without web sources?'));
+    check('Route A: no plan is shown before the teacher says yes', (await page.locator('[data-testid="plan"]').count()) === 0);
+    await page.click('a[href="#/ledger"]');
+    await page.waitForSelector('[data-testid="tile-refused"]');
+    check('Route A: one send so far, refused, nothing retried on its own',
+      (await text(page, 'tile-refused')) === '1' && (await text(page, 'tile-in-cloud')) === '0' && (await page.locator('tbody tr').count()) === 1);
+    await page.click('a[href="#/support"]');
+    await page.click('[data-testid="groups"] li >> nth=0 >> text=Plan support');
+    // Leaving the tab clears the offer (panel state resets); ask again to get it back.
+    await page.fill('[data-testid="outbound-free"]', 'adding the tops and the bottoms');
+    await page.click('[data-testid="ask"]');
+    await page.waitForSelector('[data-testid="ask-plain"]');
+    await page.click('[data-testid="ask-plain"]');
+    await page.waitForSelector('[data-testid="plan"]');
+    check('Route A: the plain plan has three activities', (await page.locator('[data-testid="plan-activities"] li').count()) === 3);
+    check('Route A: it is marked "No web sources"', (await text(page, 'no-sources-badge')) === 'No web sources');
+    check('Route A: it says there are no sources to check', (await text(page, 'plan-no-sources')).includes('without web sources'));
+    check('Route A: the offer is gone', (await page.locator('[data-testid="route-a"]').count()) === 0);
+    await page.click('a[href="#/ledger"]');
+    await page.waitForSelector('tbody tr');
+    check('Route A ledger: two refused, one answered, 0 learner tasks in the cloud',
+      (await text(page, 'tile-refused')) === '2' && (await text(page, 'tile-in-cloud')) === '1' && (await text(page, 'tile-learner-cloud')) === '0');
+    const sent = await page.locator('tbody tr pre').allTextContents();
+    check('Route A ledger: every send carries the same text', sent.length === 3 && new Set(sent).size === 1, `${sent.length} rows`);
+    await context.close();
   }
 } finally {
   await browser.close();

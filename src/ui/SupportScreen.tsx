@@ -5,13 +5,18 @@
  * The outbound preview is the point of the screen: the teacher sees every word of text
  * that will leave, the roster guard re-checks it on every keystroke, and "Ask the cloud"
  * stays switched off, with the reason, until it passes.
+ *
+ * Route A: if the grounded request is refused, nothing is retried on its own. The teacher is
+ * asked whether to send the same previewed text again without web sources, and the answer is
+ * labelled "No web sources". The Privacy ledger shows both sends.
  */
-import { useMemo, useState } from 'react';
-import { askPlan, summariseDifficulty, type Failure } from '../core/flows';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { runBatch, type BatchProgress } from '../core/batch';
+import { askPlan, summariseDifficulty, writeParentNote, type Failure } from '../core/flows';
 import { checkOutbound, describeHit } from '../core/guard';
 import { strugglingGroups, type Group } from '../core/groups';
 import { resolveMode, type Settings } from '../core/policy';
-import { buildQuestion, parsePlan, PLAN_SYSTEM } from '../core/prompts';
+import { buildQuestion, parsePlan, PLAN_SYSTEM, type ParsedPlan } from '../core/prompts';
 import type { RunContext } from '../core/runner';
 import type { ClassData, CurriculumPack, Plan } from '../core/types';
 import type { PlanLibrary } from '../firebase/services';
@@ -32,9 +37,18 @@ interface Props {
 interface GroupState {
   /** The editable difficulty phrase: the only free text in the question. */
   free: string;
-  busy?: 'summing' | 'asking';
+  /** Learner id to parent note, for the plan on screen. Kept until a new plan arrives. */
+  notes: Record<string, string>;
+  busy?: 'summing' | 'asking' | 'writing';
   problem?: string;
+  /** Route A: the grounded request was refused, so offer to send it without web sources. */
+  offerPlain?: boolean;
+  progress?: BatchProgress;
 }
+
+type Patch = Partial<GroupState> | ((current: GroupState) => Partial<GroupState>);
+
+const EMPTY: GroupState = { free: '', notes: {} };
 
 /** One sentence for any failed run, in the teacher's words. */
 export function failureText(f: Failure): string {
@@ -58,8 +72,12 @@ export function SupportScreen({ classData, pack, ctx, settings, online, plans, s
 
   const groups = strugglingGroups(classData, pack);
   const open = groups.find((g) => g.subStrand.id === openId) ?? null;
-  const update = (id: string, patch: Partial<GroupState>) =>
-    setStates((current) => ({ ...current, [id]: { free: '', ...current[id], ...patch } }));
+  // Functional so a batch of parent notes can add one note at a time without losing the others.
+  const update = (id: string, patch: Patch) =>
+    setStates((all) => {
+      const current = { ...EMPTY, ...all[id] };
+      return { ...all, [id]: { ...current, ...(typeof patch === 'function' ? patch(current) : patch) } };
+    });
 
   return (
     <section>
@@ -93,7 +111,7 @@ export function SupportScreen({ classData, pack, ctx, settings, online, plans, s
           ctx={ctx}
           settings={settings}
           online={online}
-          state={states[open.subStrand.id] ?? { free: '' }}
+          state={states[open.subStrand.id] ?? EMPTY}
           update={(patch) => update(open.subStrand.id, patch)}
           lastPlan={[...plans].reverse().find((p) => p.packId === pack.id && p.subStrandId === open.subStrand.id)}
           onPlan={(plan) => savePlans((current) => [...current, plan])}
@@ -111,7 +129,7 @@ interface PanelProps {
   settings: Settings;
   online: boolean;
   state: GroupState;
-  update: (patch: Partial<GroupState>) => void;
+  update: (patch: Patch) => void;
   lastPlan?: Plan;
   onPlan: (plan: Plan) => void;
 }
@@ -121,6 +139,8 @@ function GroupPanel({ group, pack, classData, ctx, settings, online, state, upda
   const message = useMemo(() => buildQuestion(pack, group, state.free), [pack, group, state.free]);
   const verdict = useMemo(() => checkOutbound(message, ctx.guard), [message, ctx.guard]);
   const policy = resolveMode('plan', settings);
+  const parsed = useMemo(() => (lastPlan ? parsePlan(lastPlan.answer) : null), [lastPlan]);
+  const stopper = useRef<AbortController | null>(null);
 
   // 1. Sum up the difficulty on this laptop.
   const sumUp = async () => {
@@ -148,15 +168,49 @@ function GroupPanel({ group, pack, classData, ctx, settings, online, state, upda
           : null;
 
   // 6. Ask once. Never retry on our own: a second send needs a second click.
-  const ask = async () => {
-    update({ busy: 'asking', problem: undefined });
-    const result = await askPlan(ctx, pack, group, state.free);
+  //    `search: false` is Route A's second send, from the "Ask without web sources" button only.
+  const ask = async (search: boolean) => {
+    update({ busy: 'asking', problem: undefined, offerPlain: false });
+    const result = await askPlan(ctx, pack, group, state.free, { search });
     if ('failure' in result) {
-      update({ busy: undefined, problem: failureText(result.failure) });
+      const f = result.failure;
+      const refused = search && f.status === 'error' && f.kind === 'refused';
+      update({ busy: undefined, problem: failureText(f), offerPlain: refused });
       return;
     }
     onPlan(result.plan);
-    update({ busy: undefined });
+    update({ busy: undefined, notes: {}, progress: undefined });
+  };
+
+  // 9. Parent notes, one learner at a time, on this laptop only.
+  const writeNotes = async () => {
+    if (!lastPlan || !parsed) return;
+    const home = parsed.home || lastPlan.answer;
+    const controller = new AbortController();
+    stopper.current = controller;
+    update({ busy: 'writing', problem: undefined, notes: {}, progress: undefined });
+    let problem: string | undefined;
+    const outcome = await runBatch(
+      group.learners,
+      async (learner) => {
+        const result = await writeParentNote(ctx, pack, classData, group, learner, home);
+        if ('failure' in result) {
+          problem = failureText(result.failure);
+          // With no on-device model every note would fail the same way, so stop at the first.
+          const f = result.failure;
+          return f.status === 'error' && f.kind === 'no_device_model' ? 'stop' : 'failed';
+        }
+        update((current) => ({ notes: { ...current.notes, [learner.id]: result.note } }));
+        return 'ok';
+      },
+      { signal: controller.signal, onProgress: (progress) => update({ progress }) },
+    );
+    stopper.current = null;
+    update({
+      busy: undefined,
+      progress: outcome,
+      problem: outcome.failed > 0 || (outcome.stopped && problem) ? problem : undefined,
+    });
   };
 
   const busy = state.busy !== undefined;
@@ -221,7 +275,7 @@ function GroupPanel({ group, pack, classData, ctx, settings, online, state, upda
             type="button"
             className="primary"
             data-testid="ask"
-            onClick={ask}
+            onClick={() => ask(true)}
             disabled={busy || blockedBecause !== null}
             aria-describedby={blockedBecause ? 'ask-reason' : undefined}
           >
@@ -231,26 +285,148 @@ function GroupPanel({ group, pack, classData, ctx, settings, online, state, upda
         {blockedBecause && <p id="ask-reason" data-testid="ask-reason">{blockedBecause}</p>}
       </div>
 
-      {state.problem && <p role="alert" className="bad" data-testid="support-problem">{state.problem}</p>}
+      {state.offerPlain ? (
+        // Route A. The refused request did leave the laptop; say so, then ask before a second send.
+        <div role="alert" className="route-a" data-testid="route-a">
+          <p className="bad">{state.problem}</p>
+          <p>
+            <strong>Web sources aren't available right now.</strong> Ask the cloud for a plan without web sources?
+            The same text shown above is sent again, and the answer is marked "No web sources".
+          </p>
+          <p className="row">
+            <button
+              type="button"
+              data-testid="ask-plain"
+              onClick={() => ask(false)}
+              disabled={busy || blockedBecause !== null}
+              aria-describedby={blockedBecause ? 'ask-reason' : undefined}
+            >
+              Ask without web sources
+            </button>
+            <button type="button" onClick={() => update({ offerPlain: false, problem: undefined })} disabled={busy}>
+              Not now
+            </button>
+          </p>
+        </div>
+      ) : (
+        state.problem && <p role="alert" className="bad" data-testid="support-problem">{state.problem}</p>
+      )}
 
-      {lastPlan && <PlanPreview plan={lastPlan} />}
+      {lastPlan && parsed && (
+        <>
+          <PlanPanel plan={lastPlan} parsed={parsed} />
+          <div className="step" data-testid="parent-notes">
+            <h4>5. Notes to parents</h4>
+            <p className="small">
+              Each note joins the plan's "At home" activity to one learner's own level and your note on them.
+              This runs on this laptop only. Names are added by Staffroom, never given to the model.
+            </p>
+            <p className="row">
+              <button type="button" className="primary" data-testid="write-notes" onClick={writeNotes} disabled={busy}>
+                {state.busy === 'writing' ? 'Writing…' : `Write the parent notes (${group.learners.length})`}
+              </button>
+              {state.busy === 'writing' && (
+                <button type="button" onClick={() => stopper.current?.abort()}>Stop</button>
+              )}
+              {state.progress && (
+                <span role="status" data-testid="notes-progress">
+                  {state.busy === 'writing'
+                    ? `Writing note ${Math.min(state.progress.done + 1, state.progress.total)} of ${state.progress.total}…`
+                    : `${state.progress.ok} of ${state.progress.total} notes written${state.progress.failed ? `, ${state.progress.failed} failed` : ''}.`}
+                </span>
+              )}
+            </p>
+            {Object.keys(state.notes).length > 0 && (
+              <ul className="cards" data-testid="notes">
+                {group.learners
+                  .filter((l) => state.notes[l.id] !== undefined)
+                  .map((l) => (
+                    <li key={l.id} className="card">
+                      <p className="row">
+                        <label htmlFor={`note-${l.id}`}><strong>{l.name}</strong></label>
+                        <span className="badge">Written on this laptop</span>
+                      </p>
+                      <textarea
+                        id={`note-${l.id}`}
+                        rows={6}
+                        value={state.notes[l.id]}
+                        onChange={(e) => update((current) => ({ notes: { ...current.notes, [l.id]: e.target.value } }))}
+                      />
+                    </li>
+                  ))}
+              </ul>
+            )}
+          </div>
+        </>
+      )}
     </section>
   );
 }
 
-/** Day 2 shows the answer as text. The full plan panel, sources and parent notes come on Day 3. */
-function PlanPreview({ plan }: { plan: Plan }) {
-  const parsed = parsePlan(plan.answer);
+/** 7–8. The plan, then its web sources and Google's search suggestions. */
+function PlanPanel({ plan, parsed }: { plan: Plan; parsed: ParsedPlan }) {
+  const plain = plan.grounded === false;
   return (
-    <div className="step" data-testid="plan">
-      <h4>The plan</h4>
-      <p><span className="badge">Answered in the cloud from a question with no learner in it</span></p>
+    <div className="step plan" data-testid="plan">
+      <h4>4. The plan</h4>
+      <p className="row">
+        <span className="badge">Answered in the cloud from a question with no learner in it</span>
+        {plain && <span className="badge warn-badge" data-testid="no-sources-badge">No web sources</span>}
+      </p>
       {parsed.activities.length > 0 ? (
-        <ol data-testid="plan-activities">{parsed.activities.map((a, i) => <li key={i}>{a}</li>)}</ol>
+        <>
+          <h5>Activities</h5>
+          <ol data-testid="plan-activities">{parsed.activities.map((a, i) => <li key={i}>{a}</li>)}</ol>
+          {parsed.check && (
+            <>
+              <h5>Check after two weeks</h5>
+              <p data-testid="plan-check">{parsed.check}</p>
+            </>
+          )}
+          {parsed.home && (
+            <>
+              <h5>At home</h5>
+              <p data-testid="plan-home">{parsed.home}</p>
+            </>
+          )}
+        </>
       ) : (
-        <pre>{plan.answer}</pre>
+        <pre data-testid="plan-raw">{plan.answer}</pre>
       )}
+
+      <h5>Web sources</h5>
+      {plan.sources.length > 0 ? (
+        <ul data-testid="plan-sources">
+          {plan.sources.map((s) => (
+            <li key={s.uri}>
+              <a href={s.uri} target="_blank" rel="noopener noreferrer">{s.title || s.uri}</a>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="small" data-testid="plan-no-sources">
+          {plain
+            ? 'This plan was asked for without web sources, so there are none to check. Read it as advice, not as a cited answer.'
+            : 'The cloud returned no web sources for this answer.'}
+        </p>
+      )}
+      {plan.searchHtml && <SearchSuggestions html={plan.searchHtml} />}
       <p className="small">Asked at {new Date(plan.at).toLocaleTimeString()}. The Privacy ledger shows the exact text that was sent.</p>
     </div>
   );
+}
+
+/**
+ * Google's search suggestions, as the grounding terms require. Kept in a shadow root so its
+ * styles can't leak into the page. `innerHTML` never runs the scripts in it.
+ */
+function SearchSuggestions({ html }: { html: string }) {
+  const host = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = host.current;
+    if (!el) return;
+    const root = el.shadowRoot ?? el.attachShadow({ mode: 'open' });
+    root.innerHTML = html;
+  }, [html]);
+  return <div ref={host} data-testid="search-suggestions" />;
 }

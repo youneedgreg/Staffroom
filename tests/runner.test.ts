@@ -316,7 +316,9 @@ describe('flows', () => {
     const felix = roster.find((l) => l.name === 'Felix Musyoka')!;
     const n = await writeParentNote(ctx, pack, data, group, felix, p.parsed.home);
     if (!('note' in n)) throw new Error('note failed');
-    expect(n.note.startsWith('Felix is still finding')).toBe(true);
+    // The greeting is written by code; the model's own "Dear Mr. and Mrs. …" and sign-off are dropped.
+    expect(n.note.startsWith('Dear parent or guardian of Felix,\n\nFelix is still finding')).toBe(true);
+    expect(n.note).not.toMatch(/Mrs\.|regards|\[Teacher\]/i);
 
     expect(demo.calls.map((c) => [c.task, c.mode])).toEqual([
       ['difficulty', 'only_on_device'],
@@ -329,6 +331,57 @@ describe('flows', () => {
     const sent = ledger.filter((e) => e.sentText).map((e) => e.sentText!);
     expect(sent).toHaveLength(1);
     expect(findNames(sent[0]!, roster)).toEqual([]);
+  });
+
+  it('Route A: a refused grounded plan leaves a ledger row, and only a second call sends it without search', async () => {
+    const { ctx, demo, ledger } = setup({ grounding: 'refused' });
+    const first = await askPlan(ctx, pack, group, 'adding the tops and the bottoms');
+    if (!('failure' in first)) throw new Error('expected a refusal');
+    expect(first.failure).toMatchObject({ status: 'error', kind: 'refused' });
+    // Nothing is retried on its own.
+    expect(demo.calls).toHaveLength(1);
+    expect(demo.calls[0]!.search).toBe(true);
+    expect(ledger[0]).toMatchObject({ outcome: 'error', source: 'in_cloud' });
+    expect(ledger[0]!.sentText).toContain('The difficulty they share: adding the tops and the bottoms.');
+
+    const second = await askPlan(ctx, pack, group, 'adding the tops and the bottoms', { search: false });
+    if (!('plan' in second)) throw new Error('plain plan failed');
+    expect(demo.calls).toHaveLength(2);
+    expect(demo.calls[1]!.search).toBe(false);
+    expect(demo.calls[1]!.prompt).toBe(demo.calls[0]!.prompt);
+    expect(second.plan).toMatchObject({ grounded: false, sources: [] });
+    expect(second.parsed.activities).toHaveLength(3);
+    // Both sends are in the ledger with the same text.
+    expect(ledger.map((e) => [e.outcome, e.source])).toEqual([
+      ['error', 'in_cloud'],
+      ['ok', 'in_cloud'],
+    ]);
+    expect(ledger[1]!.sentText).toBe(ledger[0]!.sentText);
+    expect(summarise(ledger)).toMatchObject({ inCloud: 1, refusedInCloud: 1, learnerTasksInCloud: 0 });
+  });
+
+  it('marks a grounded plan as grounded', async () => {
+    const { ctx } = setup();
+    const p = await askPlan(ctx, pack, group, 'adding the tops and the bottoms');
+    if (!('plan' in p)) throw new Error('plan failed');
+    expect(p.plan.grounded).toBe(true);
+  });
+
+  it('writes a parent note for every learner in the group, on the device only', async () => {
+    const { ctx, demo, ledger } = setup();
+    const notes: Record<string, string> = {};
+    const outcome = await runBatch(group.learners, async (l) => {
+      const n = await writeParentNote(ctx, pack, data, group, l, 'Share an orange equally.');
+      if (!('note' in n)) return 'failed';
+      notes[l.id] = n.note;
+      return 'ok';
+    });
+    expect(outcome).toMatchObject({ ok: group.learners.length, failed: 0, stopped: false });
+    for (const l of group.learners) expect(notes[l.id]!.startsWith(`Dear parent or guardian of ${l.name.split(' ')[0]},`)).toBe(true);
+    expect(demo.calls.every((c) => c.mode === 'only_on_device')).toBe(true);
+    // No name ever reaches the model, even on the device.
+    for (const c of demo.calls) expect(findNames(`${c.system}\n${c.prompt}`, roster)).toEqual([]);
+    expect(summarise(ledger)).toMatchObject({ onDevice: group.learners.length, inCloud: 0, charsSent: 0 });
   });
 
   it('skips the model when a group has no notes', async () => {

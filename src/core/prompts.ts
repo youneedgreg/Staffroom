@@ -229,9 +229,14 @@ export function buildQuestion(pack: CurriculumPack, group: Group, difficulty: st
   return { fixed, free };
 }
 
-export function planPrompt(pack: CurriculumPack, group: Group, difficulty: string): PromptSpec {
+/**
+ * `search` asks the cloud to ground the answer with Google Search. It is false only for the
+ * second send of Route A, after the grounded request was refused and the teacher said yes.
+ * The question text is the same either way.
+ */
+export function planPrompt(pack: CurriculumPack, group: Group, difficulty: string, search = true): PromptSpec {
   const outbound = buildQuestion(pack, group, difficulty);
-  return { task: 'plan', system: PLAN_SYSTEM, prompt: outboundText(outbound), outbound, search: true };
+  return { task: 'plan', system: PLAN_SYSTEM, prompt: outboundText(outbound), outbound, search };
 }
 
 export interface ParsedPlan {
@@ -277,7 +282,23 @@ export const PARENT_SYSTEM =
   'You write a short note from a class teacher to a parent in Kenya. ' +
   `Three sentences, 60 words at most. Call the child ${NAME_TOKEN}. ` +
   'Say what the child finds hard, in kind words. Then give the one home activity provided, in simple steps. ' +
-  'Use only the facts given. Plain English a parent can follow. No level names.';
+  'Use only the facts given. Plain English a parent can follow. No level names. ' +
+  'No greeting and no sign-off: Staffroom adds those.';
+
+/** Written by code so the model never guesses the parents' names (it wrote "Dear Mr. & Mrs. Faith"). */
+export function parentGreeting(first: string): string {
+  return `Dear parent or guardian of ${first},`;
+}
+
+const GREETING = /^\s*(?:dear|hello|hi|greetings|good (?:morning|afternoon|evening))\b[^\n,:!]*[,:!]?\s*/i;
+const SIGN_OFF =
+  /\s*(?:(?:with )?(?:best|kind|warm(?:est)?)? ?regards|yours (?:sincerely|faithfully|truly)|sincerely|warmly|best wishes)\s*,?[\s\S]*$/i;
+
+/** Strip any greeting or sign-off the model wrote anyway, tidy it, then add the code's greeting. */
+export function cleanParentNote(raw: string, first: string): string {
+  const body = cleanRemark(raw.replace(/[*_#`]/g, '').replace(GREETING, '').replace(SIGN_OFF, ''), first);
+  return body ? `${parentGreeting(first)}\n\n${body}` : '';
+}
 
 export function parentNotePrompt(
   pack: CurriculumPack,

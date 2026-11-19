@@ -24,6 +24,7 @@ export async function boot(): Promise<Boot> {
 
   // `?engine=demo` is for the browser test and for looking at the screens with no Firebase project.
   // `&device=unavailable` and `&offline=1` let the test check both failure paths.
+  // `&grounding=refused` turns down grounded plans with HTTP 429, as the free tier does (Route A).
   const forced = params.get('engine') === 'demo';
   const { hasFirebaseConfig, startFirebase } = await import('../firebase/services');
   if (forced || !hasFirebaseConfig()) {
@@ -31,6 +32,7 @@ export async function boot(): Promise<Boot> {
       device: (params.get('device') as DeviceStatus | null) ?? 'available',
       online: params.get('offline') !== '1',
       delayMs: Number(params.get('delay') ?? 0),
+      grounding: params.get('grounding') === 'refused' ? 'refused' : 'ok',
     });
     const policy = params.get('policy') === 'strict' ? 'strict' : 'standard';
     return {

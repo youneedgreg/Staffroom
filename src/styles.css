@@ -71,3 +71,10 @@ h4 { font-size: 1rem; margin: 0 0 0.35rem; }
 .outbound .pass { color: var(--good); font-weight: 600; margin: 0.5rem 0; }
 .outbound .fail { color: var(--bad); font-weight: 600; margin: 0.5rem 0; }
 .outbound .fail ul { margin: 0.25rem 0; padding-left: 1.25rem; }
+h5 { font-size: 0.95rem; margin: 0.75rem 0 0.25rem; }
+.plan ol { margin: 0.25rem 0; padding-left: 1.5rem; }
+.plan ol li { margin: 0.35rem 0; }
+.route-a { border: 2px solid var(--bad); border-radius: 8px; padding: 0.75rem 1rem; }
+.route-a p { margin: 0.35rem 0; }
+.warn-badge { border-color: var(--warn-ink); color: var(--warn-ink); background: var(--warn-bg); }
+.card textarea { width: 100%; box-sizing: border-box; }

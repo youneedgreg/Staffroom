@@ -3,6 +3,7 @@ import { CBC_G5_MATHS as pack } from '../src/core/curriculum';
 import { findNames } from '../src/core/guard';
 import { strugglingGroups, groupNotes } from '../src/core/groups';
 import {
+  cleanParentNote,
   cleanRemark,
   clip,
   difficultyPrompt,
@@ -274,5 +275,28 @@ describe('helpers', () => {
 
   it('takes the first name', () => {
     expect(firstName(byName('Abdi-Rahman Hussein'))).toBe('Abdi-Rahman');
+  });
+});
+
+describe('cleanParentNote', () => {
+  it('drops the model greeting and adds one written by code', () => {
+    expect(cleanParentNote('Dear Mr. & Mrs. Faith, [NAME] finds fractions hard.', 'Faith')).toBe(
+      'Dear parent or guardian of Faith,\n\nFaith finds fractions hard.',
+    );
+    expect(cleanParentNote('Hello Parent: [NAME] tries hard.', 'Joy')).toBe('Dear parent or guardian of Joy,\n\nJoy tries hard.');
+  });
+
+  it('drops a sign-off and anything after it', () => {
+    const note = cleanParentNote('[NAME] tries hard. Practise at home.\n\nKind regards,\n[Teacher Name]', 'Ian');
+    expect(note).toBe('Dear parent or guardian of Ian,\n\nIan tries hard. Practise at home.');
+    expect(cleanParentNote('[NAME] tries hard. Sincerely, Mrs Otieno', 'Ian')).not.toMatch(/Sincerely|Otieno/);
+  });
+
+  it('keeps a note that has neither', () => {
+    expect(cleanParentNote('[NAME] tries hard.', 'Ian')).toBe('Dear parent or guardian of Ian,\n\nIan tries hard.');
+  });
+
+  it('returns nothing for an empty note, so no bare greeting is shown', () => {
+    expect(cleanParentNote('  ', 'Ian')).toBe('');
   });
 });
