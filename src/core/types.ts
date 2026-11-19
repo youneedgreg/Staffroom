@@ -72,5 +72,10 @@ export interface Plan {
   sources: WebSource[];
   /** Google's search suggestions snippet. The grounding terms require showing it. */
   searchHtml?: string;
+  /**
+   * False when the teacher asked again without web sources after the grounded request was
+   * refused (Route A). Missing on plans saved before Day 3, which were all grounded requests.
+   */
+  grounded?: boolean;
   at: number;
 }

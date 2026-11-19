@@ -331,6 +331,40 @@ describe('flows', () => {
     expect(findNames(sent[0]!, roster)).toEqual([]);
   });
 
+  it('Route A: a refused grounded plan leaves a ledger row, and only a second call sends it without search', async () => {
+    const { ctx, demo, ledger } = setup({ grounding: 'refused' });
+    const first = await askPlan(ctx, pack, group, 'adding the tops and the bottoms');
+    if (!('failure' in first)) throw new Error('expected a refusal');
+    expect(first.failure).toMatchObject({ status: 'error', kind: 'refused' });
+    // Nothing is retried on its own.
+    expect(demo.calls).toHaveLength(1);
+    expect(demo.calls[0]!.search).toBe(true);
+    expect(ledger[0]).toMatchObject({ outcome: 'error', source: 'in_cloud' });
+    expect(ledger[0]!.sentText).toContain('The difficulty they share: adding the tops and the bottoms.');
+
+    const second = await askPlan(ctx, pack, group, 'adding the tops and the bottoms', { search: false });
+    if (!('plan' in second)) throw new Error('plain plan failed');
+    expect(demo.calls).toHaveLength(2);
+    expect(demo.calls[1]!.search).toBe(false);
+    expect(demo.calls[1]!.prompt).toBe(demo.calls[0]!.prompt);
+    expect(second.plan).toMatchObject({ grounded: false, sources: [] });
+    expect(second.parsed.activities).toHaveLength(3);
+    // Both sends are in the ledger with the same text.
+    expect(ledger.map((e) => [e.outcome, e.source])).toEqual([
+      ['error', 'in_cloud'],
+      ['ok', 'in_cloud'],
+    ]);
+    expect(ledger[1]!.sentText).toBe(ledger[0]!.sentText);
+    expect(summarise(ledger)).toMatchObject({ inCloud: 1, refusedInCloud: 1, learnerTasksInCloud: 0 });
+  });
+
+  it('marks a grounded plan as grounded', async () => {
+    const { ctx } = setup();
+    const p = await askPlan(ctx, pack, group, 'adding the tops and the bottoms');
+    if (!('plan' in p)) throw new Error('plan failed');
+    expect(p.plan.grounded).toBe(true);
+  });
+
   it('skips the model when a group has no notes', async () => {
     const mine = sampleClass();
     for (const a of Object.values(mine.assessments)) a.note = '';

@@ -229,9 +229,14 @@ export function buildQuestion(pack: CurriculumPack, group: Group, difficulty: st
   return { fixed, free };
 }
 
-export function planPrompt(pack: CurriculumPack, group: Group, difficulty: string): PromptSpec {
+/**
+ * `search` asks the cloud to ground the answer with Google Search. It is false only for the
+ * second send of Route A, after the grounded request was refused and the teacher said yes.
+ * The question text is the same either way.
+ */
+export function planPrompt(pack: CurriculumPack, group: Group, difficulty: string, search = true): PromptSpec {
   const outbound = buildQuestion(pack, group, difficulty);
-  return { task: 'plan', system: PLAN_SYSTEM, prompt: outboundText(outbound), outbound, search: true };
+  return { task: 'plan', system: PLAN_SYSTEM, prompt: outboundText(outbound), outbound, search };
 }
 
 export interface ParsedPlan {

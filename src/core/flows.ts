@@ -67,14 +67,20 @@ export async function summariseDifficulty(
   return { difficulty: parseDifficulty(result.text) };
 }
 
-/** Cloud: the one request that leaves the laptop. The runner applies the roster guard. */
+/**
+ * Cloud: the one request that leaves the laptop. The runner applies the roster guard.
+ * `search: false` is Route A's second send: the same question, without Google Search,
+ * only after the grounded one was refused and the teacher clicked again. Never called on its own.
+ */
 export async function askPlan(
   ctx: RunContext,
   pack: CurriculumPack,
   group: Group,
   difficulty: string,
+  options: { search?: boolean } = {},
 ): Promise<{ plan: Plan; parsed: ParsedPlan } | { failure: Failure }> {
-  const spec = planPrompt(pack, group, difficulty);
+  const search = options.search ?? true;
+  const spec = planPrompt(pack, group, difficulty, search);
   const result = await runTask(ctx, spec);
   if (result.status !== 'ok') return { failure: result };
   const plan: Plan = {
@@ -85,6 +91,7 @@ export async function askPlan(
     answer: result.text,
     sources: result.sources,
     searchHtml: result.searchHtml,
+    grounded: search,
     at: Date.now(),
   };
   return { plan, parsed: parsePlan(result.text) };
