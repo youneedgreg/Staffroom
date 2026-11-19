@@ -1,4 +1,4 @@
-import { summarise, type LedgerEntry } from '../core/ledger';
+import { ranText, summarise, type LedgerEntry } from '../core/ledger';
 import { TASKS, type Mode } from '../core/policy';
 
 const MODE_TEXT: Record<Mode | 'disabled', string> = {
@@ -52,15 +52,7 @@ export function LedgerScreen({ ledger, onClear }: { ledger: LedgerEntry[]; onCle
                   <td>{new Date(e.at).toLocaleTimeString()}</td>
                   <th scope="row">{TASKS[e.task].label}</th>
                   <td>{MODE_TEXT[e.mode]}</td>
-                  <td>
-                    {e.source === 'on_device'
-                      ? 'On this laptop'
-                      : e.source === 'in_cloud'
-                        ? e.outcome === 'error'
-                          ? 'Sent to the cloud, refused'
-                          : 'In the cloud'
-                        : 'Did not run'}
-                  </td>
+                  <td>{ranText(e)}</td>
                   <td>{OUTCOME_TEXT[e.outcome]}{e.note ? `: ${e.note}` : ''}</td>
                   <td>
                     {e.sentText ? (

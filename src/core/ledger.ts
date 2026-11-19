@@ -30,6 +30,18 @@ export function newEntry(fields: Omit<LedgerEntry, 'id' | 'at'>): LedgerEntry {
   return { id: uid('led'), at: Date.now(), ...fields };
 }
 
+/** True when the entry's text left the laptop, whether or not the cloud did the work. */
+export function leftLaptop(e: LedgerEntry): boolean {
+  return e.source === 'in_cloud' || e.sentChars > 0;
+}
+
+/** The "Ran" wording used on the ledger and self-test screens. */
+export function ranText(e: LedgerEntry | null | undefined): string {
+  if (!e?.source) return 'Did not run';
+  if (e.source === 'in_cloud') return e.outcome === 'error' ? 'Sent to the cloud, refused' : 'In the cloud';
+  return e.sentChars > 0 ? 'On this laptop, after the cloud refused' : 'On this laptop';
+}
+
 export interface LedgerSummary {
   total: number;
   onDevice: number;
@@ -58,8 +70,8 @@ export function summarise(entries: LedgerEntry[]): LedgerSummary {
     else if (e.outcome === 'disabled') s.disabled += 1;
     else if (e.outcome === 'error') s.errors += 1;
     if (e.source === 'on_device') s.onDevice += 1;
-    if (e.source === 'in_cloud') {
-      s.inCloud += 1;
+    if (e.source === 'in_cloud') s.inCloud += 1;
+    if (leftLaptop(e)) {
       s.charsSent += e.sentChars;
       if (TASKS[e.task].touchesLearnerData) s.learnerTasksInCloud += 1;
     }

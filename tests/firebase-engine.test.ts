@@ -1,7 +1,7 @@
 import { AIError, AIErrorCode, type AI } from 'firebase/ai';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CloudRefusedError, NoDeviceModelError, OfflineError, type EngineRequest } from '../src/engine/engine';
-import { FirebaseEngine } from '../src/engine/firebase';
+import { FirebaseEngine, resetFetchWatchForTests } from '../src/engine/firebase';
 
 // Only the model factory is replaced: the errors are the SDK's own classes.
 const generateContent = vi.fn();
@@ -21,7 +21,10 @@ const request = (mode: EngineRequest['mode']): EngineRequest => ({
 });
 
 // Node's `navigator` has no `onLine`; without this the engine's own offline check fires first.
-beforeEach(() => vi.stubGlobal('navigator', { onLine: true }));
+beforeEach(() => {
+  vi.stubGlobal('navigator', { onLine: true });
+  resetFetchWatchForTests();
+});
 afterEach(() => {
   generateContent.mockReset();
   vi.unstubAllGlobals();
@@ -52,5 +55,71 @@ describe('FirebaseEngine: how SDK errors are reported', () => {
     vi.stubGlobal('LanguageModel', { availability: async () => 'available' });
     generateContent.mockRejectedValue(new AIError(AIErrorCode.UNSUPPORTED, 'no model'));
     await expect(engine().run(request('only_on_device'))).rejects.toBeInstanceOf(NoDeviceModelError);
+  });
+});
+
+describe('FirebaseEngine: PREFER_IN_CLOUD falling back to the device', () => {
+  const lesson = (prompt = 'Suggest a starter activity for "Fractions".'): EngineRequest => ({
+    task: 'lessonIdea',
+    mode: 'prefer_in_cloud',
+    system: 'system',
+    prompt,
+    cloudModel: 'gemini-3.5-flash-lite',
+  });
+
+  /** Make the mocked SDK call fetch with a body that carries `bodyPrompt`, then report `source`. */
+  function sdkCalls(bodyPrompt: string, source: 'on_device' | 'in_cloud') {
+    generateContent.mockImplementation(async () => {
+      try {
+        await fetch('https://firebasevertexai.googleapis.com/x', {
+          method: 'POST',
+          body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: bodyPrompt }] }] }),
+        });
+      } catch {
+        // The SDK swallows the cloud error and falls back.
+      }
+      return { response: { inferenceSource: source, text: () => 'ok', candidates: [] } };
+    });
+  }
+
+  it('flags a request the cloud refused (HTTP 429) before the device ran it', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 429 })));
+    sdkCalls(lesson().prompt, 'on_device');
+    const result = await engine().run(lesson());
+    expect(result.source).toBe('on_device');
+    expect(result.refusedBeforeFallback).toEqual({ status: 429 });
+  });
+
+  it('does not flag a fallback when the cloud gave no response (nothing left)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      throw new TypeError('Failed to fetch');
+    }));
+    sdkCalls(lesson().prompt, 'on_device');
+    const result = await engine().run(lesson());
+    expect(result.source).toBe('on_device');
+    expect(result.refusedBeforeFallback).toBeUndefined();
+  });
+
+  it('does not flag a request the cloud answered', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })));
+    sdkCalls(lesson().prompt, 'in_cloud');
+    const result = await engine().run(lesson());
+    expect(result.source).toBe('in_cloud');
+    expect(result.refusedBeforeFallback).toBeUndefined();
+  });
+
+  it('ignores fetches that carry a different prompt', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 429 })));
+    sdkCalls('Some other "question"', 'on_device');
+    const result = await engine().run(lesson());
+    expect(result.refusedBeforeFallback).toBeUndefined();
+  });
+
+  it('matches a prompt with quotes and new lines as the SDK writes it in JSON', async () => {
+    const prompt = 'Line one "quoted"\nLine two';
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 503 })));
+    sdkCalls(prompt, 'on_device');
+    const result = await engine().run(lesson(prompt));
+    expect(result.refusedBeforeFallback).toEqual({ status: 503 });
   });
 });
