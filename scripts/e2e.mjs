@@ -20,6 +20,12 @@ const browser = await chromium.launch(
 );
 
 const text = (page, id) => page.textContent(`[data-testid="${id}"]`);
+// Function 12: click one of the two quick-help buttons and return where it ran.
+const quick = async (page, id) => {
+  await page.click(`[data-testid="quick-${id}-run"]`);
+  await page.waitForSelector(`[data-testid="quick-${id}-ran"]`);
+  return text(page, `quick-${id}-ran`);
+};
 
 try {
   // 1. The whole loop on a laptop with an on-device model.
@@ -134,6 +140,15 @@ try {
       (await text(page, 'tile-in-cloud')) === '3' && Number(await text(page, 'tile-chars')) > 500);
     check('ledger after the self-test: 0 requests refused by the cloud', (await text(page, 'tile-refused')) === '0');
 
+    // Function 12, online with a model: the starter prefers the cloud, the plain-words line prefers the laptop.
+    await page.click('a[href="#/support"]');
+    await page.waitForSelector('[data-testid="quick-help"]');
+    check('starter activity, online: in the cloud', (await quick(page, 'lessonIdea')) === 'In the cloud');
+    check('starter activity: the answer is shown', (await text(page, 'quick-lessonIdea-text')).startsWith('Call out a number'));
+    check('plain words, with a model: on this laptop', (await quick(page, 'plainWords')) === 'On this laptop');
+    check('quick help shows the exact text it would send',
+      (await page.textContent('[data-testid="quick-lessonIdea"] pre')).includes('sub-strand "Fractions"'));
+
     // 2. Everything survives a reload, and the app starts with no connection.
     await page.evaluate(() => navigator.serviceWorker.ready);
     await page.reload();
@@ -180,6 +195,7 @@ try {
     check('parent notes: refused with no on-device model, not sent to the cloud',
       (await text(page, 'support-problem')).includes('never sent to the cloud instead') && (await text(page, 'notes-progress')).startsWith('0 of 10'));
     check('parent notes: none shown', (await page.locator('[data-testid="notes"] li').count()) === 0);
+    check('plain words, no model: falls back to the cloud', (await quick(page, 'plainWords')) === 'In the cloud');
     await context.close();
   }
 
@@ -194,7 +210,23 @@ try {
     await page.waitForSelector('[data-testid="outbound"]');
     check('strict policy: "Ask the cloud" is off', await page.isDisabled('[data-testid="ask"]'));
     check('strict policy: the school\'s reason is shown', (await text(page, 'ask-reason')).includes('Your school allows nothing to leave the laptop'));
+    check('strict policy: the starter activity runs on this laptop', (await quick(page, 'lessonIdea')) === 'On this laptop');
     await context.close();
+
+    // The Day-4 gate in the simulated engine: with no connection the starter still answers, on the laptop.
+    const context3 = await browser.newContext();
+    const page3 = await context3.newPage();
+    await page3.goto(`${BASE}/?engine=demo&offline=1`);
+    await page3.click('text=Load the invented sample class');
+    await page3.click('a[href="#/support"]');
+    await page3.click('[data-testid="groups"] li >> nth=0 >> text=Plan support');
+    check('no connection: the starter activity still answers', (await quick(page3, 'lessonIdea')) === 'On this laptop'
+      && (await text(page3, 'quick-lessonIdea-text')).length > 0);
+    check('no connection: plain words on this laptop', (await quick(page3, 'plainWords')) === 'On this laptop');
+    await page3.click('a[href="#/ledger"]');
+    await page3.waitForSelector('[data-testid="tile-chars"]');
+    check('no connection: 0 characters sent', (await text(page3, 'tile-chars')) === '0' && (await text(page3, 'tile-on-device')) === '2');
+    await context3.close();
 
     const context2 = await browser.newContext();
     const page2 = await context2.newPage();

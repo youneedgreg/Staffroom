@@ -16,8 +16,17 @@ import { askPlan, summariseDifficulty, writeParentNote, type Failure } from '../
 import { checkOutbound, describeHit } from '../core/guard';
 import { strugglingGroups, type Group } from '../core/groups';
 import { resolveMode, type Settings } from '../core/policy';
-import { buildQuestion, parsePlan, PLAN_SYSTEM, type ParsedPlan } from '../core/prompts';
-import type { RunContext } from '../core/runner';
+import { ranText } from '../core/ledger';
+import {
+  buildQuestion,
+  lessonIdeaPrompt,
+  parsePlan,
+  plainWordsPrompt,
+  PLAN_SYSTEM,
+  type ParsedPlan,
+  type PromptSpec,
+} from '../core/prompts';
+import { runTask, type RunContext } from '../core/runner';
 import type { ClassData, CurriculumPack, Plan } from '../core/types';
 import type { PlanLibrary } from '../firebase/services';
 
@@ -59,6 +68,18 @@ export interface GroupState {
   progress?: BatchProgress;
   /** Stops the parent-note batch. Set only while it runs. */
   stop?: () => void;
+  /** 12. The two small helpers, each with the text it got and where it ran. */
+  quick?: Partial<Record<QuickId, QuickResult>>;
+}
+
+type QuickId = 'lessonIdea' | 'plainWords';
+
+interface QuickResult {
+  busy?: boolean;
+  text?: string;
+  /** Where it ran, in the ledger's words: "On this laptop", "In the cloud", … */
+  ran?: string;
+  problem?: string;
 }
 
 type Patch = Partial<GroupState> | ((current: GroupState) => Partial<GroupState>);
@@ -373,7 +394,75 @@ function GroupPanel({ group, pack, classData, ctx, settings, online, state, upda
           </div>
         </>
       )}
+
+      <QuickHelp
+        specs={{
+          lessonIdea: lessonIdeaPrompt(pack, group.subStrand),
+          plainWords: plainWordsPrompt(pack, 'AE', group.subStrand),
+        }}
+        labels={{ lessonIdea: 'Starter activity', plainWords: `What does ${pack.levelNames.AE} mean here?` }}
+        state={state.quick ?? {}}
+        run={async (id, spec) => {
+          const set = (r: QuickResult) => update((current) => ({ quick: { ...current.quick, [id]: r } }));
+          set({ busy: true });
+          const result = await runTask(ctx, spec);
+          set(
+            result.status === 'ok'
+              ? { text: result.text.trim(), ran: ranText(result.entry) }
+              : { problem: failureText(result), ran: ranText(result.entry) },
+          );
+        }}
+      />
     </section>
+  );
+}
+
+/**
+ * 12. Two small helpers with no learner in them. The starter activity prefers the cloud and
+ * falls back to the laptop with no connection; the plain-words line prefers the laptop. Each
+ * says where it ran, which is where a judge sees PREFER_IN_CLOUD move to the device offline.
+ */
+function QuickHelp({
+  specs,
+  labels,
+  state,
+  run,
+}: {
+  specs: Record<QuickId, PromptSpec>;
+  labels: Record<QuickId, string>;
+  state: Partial<Record<QuickId, QuickResult>>;
+  run: (id: QuickId, spec: PromptSpec) => Promise<void>;
+}) {
+  const ids: QuickId[] = ['lessonIdea', 'plainWords'];
+  return (
+    <div className="step" data-testid="quick-help">
+      <h4>Quick help for the lesson</h4>
+      <p className="small">No learner is in these questions. Each one says where it ran.</p>
+      <div className="cards quick">
+        {ids.map((id) => {
+          const r = state[id];
+          const spec = specs[id];
+          return (
+            <div key={id} className="card" data-testid={`quick-${id}`}>
+              <p className="row">
+                <button type="button" data-testid={`quick-${id}-run`} onClick={() => void run(id, spec)} disabled={r?.busy}>
+                  {r?.busy ? 'Working…' : labels[id]}
+                </button>
+              </p>
+              {r?.text && <p data-testid={`quick-${id}-text`}>{r.text}</p>}
+              {r?.problem && <p role="alert" className="bad" data-testid={`quick-${id}-problem`}>{r.problem}</p>}
+              {r?.ran && !r.busy && (
+                <p className="small">Ran: <strong data-testid={`quick-${id}-ran`}>{r.ran}</strong></p>
+              )}
+              <details className="small">
+                <summary>What this sends if it uses the cloud</summary>
+                <pre>{`${spec.system}\n\n${spec.prompt}`}</pre>
+              </details>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

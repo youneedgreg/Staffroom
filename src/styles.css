@@ -78,3 +78,5 @@ h5 { font-size: 0.95rem; margin: 0.75rem 0 0.25rem; }
 .route-a p { margin: 0.35rem 0; }
 .warn-badge { border-color: var(--warn-ink); color: var(--warn-ink); background: var(--warn-bg); }
 .card textarea { width: 100%; box-sizing: border-box; }
+.quick { grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); }
+.quick pre { white-space: pre-wrap; }
