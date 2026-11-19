@@ -78,3 +78,26 @@ The app opened with wifi off and a remark was written on the laptop. **Pass.**
 | Learner tasks sent to the cloud | 0 |
 
 **Pass**, with limits: the observer doesn't see fetches made inside the service worker, Chrome's own traffic, or data on an already-open connection. A DevTools Network recording is still to be made for the video. Background pings from App Check and Remote Config happen while the app is idle, so the claim is "nothing is sent while remarks are written", not "no network at all".
+
+## Thu 19 Nov 2026 — Day-3 gate: the nine-step loop on the real engine
+
+**Setup:** MacBook Air M2, 8 GB RAM, Chrome 157 (stable), `nano_v3_gpu_low_tier_model`. Dev server, real Firebase engine, branch `feat/support-plan-panel`. Data wiped first, then the invented sample class loaded.
+"Wifi off" was done as **DevTools → Network → Offline for the Staffroom tab only** (turning off the Mac's wifi would also cut off the tool driving the run). A test request to the AI endpoint failed while it was set.
+
+| Step | Result |
+|---|---|
+| 1. Load the sample class | 30 learners |
+| 3. Draft all remarks, tab offline | "Done. 30 drafted.", 30 cards "Written on this laptop", batch finished within 99 s |
+| 4. Sum up, tab offline | Fractions first, 10 learners; one phrase in 3.5 s; 0 learner names, 0 numbers, 0 school words |
+| 5. Tab online, "Ask the cloud" | Outbound preview showed the full question; the grounded request was refused by the cloud in 1.5 s (check 9) |
+| 6. Route A | The refusal box offered "Ask without web sources"; nothing was resent until it was clicked. The plan came back with 3 activities, "Check after two weeks" and "At home", marked "No web sources", 0 sources |
+| 7. Write the parent notes | 10 of 10, each "Written on this laptop", about 44 s for the batch; all 10 open "Dear parent or guardian of <first name>," |
+| 8. "Kevin" in the phrase | "1 learner name"; "Ask the cloud" off with the reason |
+| 9. Privacy ledger | **42** on this laptop, 1 in the cloud, 1 sent and refused, **learner tasks sent to the cloud 0**, 1,852 characters sent; both sends carry the same text, with no learner name |
+
+**Pass**, with these differences from the spec: 42 on the laptop, not 41, because the difficulty was summed up twice (the panel lost the phrase when the tab was left, a known limit); no web sources, because grounding isn't on the free tier (Route A).
+
+**Seen in the run (not measurements):**
+- With the tab offline in DevTools, `navigator.onLine` stayed true, so the status bar said "online" and "Ask the cloud" stayed on. Turning off real wifi does change it (check 11).
+- The first difficulty phrase read "Fractions often struggle with …" (the topic as the subject). The second was fine.
+- Parent notes, my reading: 7 of 10 usable as written. One garbled sentence ("You are doing excellent by helping Faith practice; their work is neat!"), one dangling phrase from the teacher's note ("Often missing in class, …"), one vague ("the digits on the tops and bottoms don't match up").
