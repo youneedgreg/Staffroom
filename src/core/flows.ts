@@ -1,6 +1,7 @@
 /** The teacher-facing jobs, each built from a prompt, the runner and a parser. */
 import { groupNotes, type Group } from './groups';
 import {
+  cleanParentNote,
   cleanRemark,
   difficultyPrompt,
   firstName,
@@ -111,5 +112,9 @@ export async function writeParentNote(
   const spec = parentNotePrompt(pack, group.subStrand, learner, assessment, homeActivity, data.learners);
   const result = await runTask(ctx, spec);
   if (result.status !== 'ok') return { failure: result };
-  return { note: cleanRemark(result.text, firstName(learner)) };
+  const note = cleanParentNote(result.text, firstName(learner));
+  if (!note) {
+    return { failure: { status: 'error', kind: 'other', message: 'The model returned an empty note.', entry: result.entry } };
+  }
+  return { note };
 }

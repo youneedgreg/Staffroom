@@ -45,7 +45,7 @@ function text(request: EngineRequest): string {
         'Ask the child to share a chapati or an orange equally between family members and name each share.',
       ].join('\n');
     case 'personalise':
-      return '[NAME] is still finding this topic hard, and that is normal at this stage. At home, please try the sharing activity for five minutes, three times a week. Praise each correct answer.';
+      return 'Dear Mr. and Mrs. [NAME], [NAME] is still finding this topic hard, and that is normal at this stage. At home, please try the sharing activity for five minutes, three times a week. Praise each correct answer. Kind regards, [Teacher]';
     case 'lessonIdea':
       return 'Call out a number. Learners show it with fingers, then say one more and one less.';
     case 'plainWords':

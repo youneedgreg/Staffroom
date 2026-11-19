@@ -316,7 +316,9 @@ describe('flows', () => {
     const felix = roster.find((l) => l.name === 'Felix Musyoka')!;
     const n = await writeParentNote(ctx, pack, data, group, felix, p.parsed.home);
     if (!('note' in n)) throw new Error('note failed');
-    expect(n.note.startsWith('Felix is still finding')).toBe(true);
+    // The greeting is written by code; the model's own "Dear Mr. and Mrs. …" and sign-off are dropped.
+    expect(n.note.startsWith('Dear parent or guardian of Felix,\n\nFelix is still finding')).toBe(true);
+    expect(n.note).not.toMatch(/Mrs\.|regards|\[Teacher\]/i);
 
     expect(demo.calls.map((c) => [c.task, c.mode])).toEqual([
       ['difficulty', 'only_on_device'],
@@ -363,6 +365,23 @@ describe('flows', () => {
     const p = await askPlan(ctx, pack, group, 'adding the tops and the bottoms');
     if (!('plan' in p)) throw new Error('plan failed');
     expect(p.plan.grounded).toBe(true);
+  });
+
+  it('writes a parent note for every learner in the group, on the device only', async () => {
+    const { ctx, demo, ledger } = setup();
+    const notes: Record<string, string> = {};
+    const outcome = await runBatch(group.learners, async (l) => {
+      const n = await writeParentNote(ctx, pack, data, group, l, 'Share an orange equally.');
+      if (!('note' in n)) return 'failed';
+      notes[l.id] = n.note;
+      return 'ok';
+    });
+    expect(outcome).toMatchObject({ ok: group.learners.length, failed: 0, stopped: false });
+    for (const l of group.learners) expect(notes[l.id]!.startsWith(`Dear parent or guardian of ${l.name.split(' ')[0]},`)).toBe(true);
+    expect(demo.calls.every((c) => c.mode === 'only_on_device')).toBe(true);
+    // No name ever reaches the model, even on the device.
+    for (const c of demo.calls) expect(findNames(`${c.system}\n${c.prompt}`, roster)).toEqual([]);
+    expect(summarise(ledger)).toMatchObject({ onDevice: group.learners.length, inCloud: 0, charsSent: 0 });
   });
 
   it('skips the model when a group has no notes', async () => {
