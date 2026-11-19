@@ -101,3 +101,15 @@ The app opened with wifi off and a remark was written on the laptop. **Pass.**
 - With the tab offline in DevTools, `navigator.onLine` stayed true, so the status bar said "online" and "Ask the cloud" stayed on. Turning off real wifi does change it (check 11).
 - The first difficulty phrase read "Fractions often struggle with …" (the topic as the subject). The second was fine.
 - Parent notes, my reading: 7 of 10 usable as written. One garbled sentence ("You are doing excellent by helping Faith practice; their work is neat!"), one dangling phrase from the teacher's note ("Often missing in class, …"), one vague ("the digits on the tops and bottoms don't match up").
+
+## Thu 19 Nov 2026 — function 12 on the real engine (first half of the Day-4 gate)
+
+**Setup:** same Mac and Chrome as the Day-3 gate, dev server, real Firebase engine, branch `feat/support-quick-help`, invented sample class, Fractions group. "Offline" is DevTools → Network → Offline for the tab; a test request to the AI endpoint failed while it was set. One run each, so the times are not measurements.
+
+| Button | Mode | Tab | Ran | Time | Sent |
+|---|---|---|---|---|---|
+| Starter activity | PREFER_IN_CLOUD | online | In the cloud | 2.6 s | 275 characters |
+| What does Approaching Expectation mean here? | PREFER_ON_DEVICE | online | On this laptop | 15.1 s (probably a cold start) | Nothing |
+| Starter activity | PREFER_IN_CLOUD | offline | On this laptop | 4.6 s | Nothing |
+
+All three answers were usable. **Gate half passes:** with no connection, "Starter activity" still answers and says "On this laptop". The other half (the strict policy published from the Remote Config console) is still to do.
