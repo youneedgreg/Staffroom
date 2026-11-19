@@ -3,7 +3,7 @@ import { getPack } from '../core/curriculum';
 import type { LedgerEntry } from '../core/ledger';
 import type { Settings } from '../core/policy';
 import type { RunContext } from '../core/runner';
-import type { ClassData, Remark } from '../core/types';
+import type { ClassData, Plan, Remark } from '../core/types';
 import type { DeviceStatus } from '../engine/engine';
 import { ClassScreen } from '../ui/ClassScreen';
 import { LedgerScreen } from '../ui/LedgerScreen';
@@ -33,6 +33,7 @@ export function App({ boot }: { boot: Boot }) {
   const [classData, setClassData] = useState<ClassData | null>(boot.data.classData);
   const [remarks, setRemarks] = useState<Record<string, Remark>>(boot.data.remarks);
   const [ledger, setLedger] = useState<LedgerEntry[]>(boot.data.ledger);
+  const [plans, setPlans] = useState<Plan[]>(boot.data.plans);
   const [settings, setSettings] = useState<Settings>(boot.settings);
   const [device, setDevice] = useState<DeviceStatus>('unavailable');
   const [online, setOnline] = useState<boolean>(navigator.onLine);
@@ -77,6 +78,17 @@ export function App({ boot }: { boot: Boot }) {
     [repo],
   );
 
+  const savePlans = useCallback(
+    (update: (current: Plan[]) => Plan[]) => {
+      setPlans((current) => {
+        const next = update(current);
+        void repo.savePlans(next);
+        return next;
+      });
+    },
+    [repo],
+  );
+
   // The ledger is appended from long-running batches, so it is kept in a ref as well as in state.
   const ledgerRef = useRef(ledger);
   const record = useCallback(
@@ -98,6 +110,7 @@ export function App({ boot }: { boot: Boot }) {
     ledgerRef.current = [];
     setClassData(null);
     setRemarks({});
+    setPlans([]);
     setLedger([]);
   }, [repo]);
 
@@ -143,7 +156,18 @@ export function App({ boot }: { boot: Boot }) {
         {tab === 'reports' && (
           <ReportsScreen classData={classData} pack={pack} ctx={ctx} remarks={remarks} saveRemarks={saveRemarks} />
         )}
-        {tab === 'support' && <SupportScreen classData={classData} pack={pack} />}
+        {tab === 'support' && (
+          <SupportScreen
+            classData={classData}
+            pack={pack}
+            ctx={ctx}
+            settings={settings}
+            online={online}
+            library={boot.plans}
+            plans={plans}
+            savePlans={savePlans}
+          />
+        )}
         {tab === 'ledger' && <LedgerScreen ledger={ledger} onClear={clearLedger} />}
         {tab === 'selftest' && <SelfTestScreen engine={engine} settings={settings} record={record} />}
       </main>
