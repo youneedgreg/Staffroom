@@ -41,3 +41,40 @@ Prompt API model `nano_v3_gpu_low_tier_model` (GPU route). Dev server, real Fire
 | Plain-words level | On this laptop | 1.7 s | Usable |
 
 **Check 7 (at least 24 of 30 usable, under 10 s each):** usable passes (27 of 30); speed passes when the model is warm, not for the first call or the self-test remark.
+
+## Thu 19 Nov 2026 — no cloud fallback, offline, and no requests while remarks are written (checks 10–12)
+
+### Check 10: a browser with no on-device model
+
+**Setup:** Safari on the same Mac, dev server, real Firebase engine, invented sample class, self-test.
+
+| Task | Mode | Ran | Sent |
+|---|---|---|---|
+| Report remark | ONLY_ON_DEVICE | Did not run: "Learner data is never sent to the cloud instead" | Nothing |
+| Group difficulty | ONLY_ON_DEVICE | Did not run (same message) | Nothing |
+| Parent note | ONLY_ON_DEVICE | Did not run (same message) | Nothing |
+| Remedial plan | ONLY_IN_CLOUD | Sent to the cloud, refused (HTTP 429, check 9) | 758 characters |
+| Starter activity | PREFER_IN_CLOUD | In the cloud | 275 characters |
+| Plain-words level | PREFER_ON_DEVICE | In the cloud (no model, so the cloud was used) | 242 characters |
+
+Ledger: **learner tasks sent to the cloud 0**, ran in the cloud 2, sent and refused 1, characters sent 1,275. App Check worked in Safari on localhost. **Pass.**
+
+### Check 11: offline
+
+**Setup:** Chrome, built app (`npm run build`, `npm run preview`), loaded once online, wifi off, reload.
+
+The app opened with wifi off and a remark was written on the laptop. **Pass.**
+
+### Check 12: no requests while remarks are written
+
+**Setup:** Chrome, built app, wifi on, invented sample class. A `PerformanceObserver` for resource entries ran in the page for 1,235 s before "Draft all remarks" and through the batch.
+
+| Measure | Result |
+|---|---|
+| Requests seen before the batch, page idle | 18: reCAPTCHA Enterprise `clr` pings (App Check), about one a minute, and the Remote Config realtime stream |
+| Last idle request before the batch | about 5 min before |
+| Remarks drafted | 30 of 30, about 130 s |
+| Requests seen during the batch | **0** (0 to any AI endpoint) |
+| Learner tasks sent to the cloud | 0 |
+
+**Pass**, with limits: the observer doesn't see fetches made inside the service worker, Chrome's own traffic, or data on an already-open connection. A DevTools Network recording is still to be made for the video. Background pings from App Check and Remote Config happen while the app is idle, so the claim is "nothing is sent while remarks are written", not "no network at all".
