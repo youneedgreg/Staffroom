@@ -43,10 +43,25 @@ export class NoDeviceModelError extends Error {
   }
 }
 
-/** Thrown when a mode needs the cloud and it cannot be reached. */
+/** Thrown when a mode needs the cloud and it cannot be reached. Nothing left the laptop. */
 export class OfflineError extends Error {
   constructor() {
     super('The cloud could not be reached.');
     this.name = 'OfflineError';
+  }
+}
+
+/**
+ * Thrown when the request reached the cloud and the cloud turned it down
+ * (for example HTTP 429, over the free quota). The prompt did leave the laptop,
+ * so the ledger must record it as sent.
+ */
+export class CloudRefusedError extends Error {
+  constructor(
+    readonly status: number,
+    detail = '',
+  ) {
+    super(`The cloud refused the request (HTTP ${status})${detail ? `: ${detail}` : ''}`);
+    this.name = 'CloudRefusedError';
   }
 }
