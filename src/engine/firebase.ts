@@ -20,7 +20,7 @@ import {
 import type { Mode } from '../core/policy';
 import type { WebSource } from '../core/types';
 import type { DeviceStatus, Engine, EngineRequest, EngineResult } from './engine';
-import { NoDeviceModelError, OfflineError } from './engine';
+import { CloudRefusedError, NoDeviceModelError, OfflineError } from './engine';
 
 const SDK_MODE: Record<Mode, InferenceMode> = {
   only_on_device: InferenceMode.ONLY_ON_DEVICE,
@@ -128,11 +128,25 @@ export class FirebaseEngine implements Engine {
       };
     } catch (error) {
       if (error instanceof AIError) {
+        // An HTTP status means the request reached Google and got an answer back,
+        // so the prompt left the laptop (firebase 13.3.0 sets it on FETCH_ERROR and API_NOT_ENABLED).
+        const status = error.customErrorData?.status;
+        if (typeof status === 'number') {
+          // Keep the server's reason; drop the SDK's "AI: Error fetching from <url>: [429 ]" wrapper.
+          const reason = error.message
+            .replace(/^AI: Error fetching from \S+: (\[[^\]]*\] )?/, '')
+            .replace(/ \(AI\/[^)]+\)$/, '');
+          throw new CloudRefusedError(status, reason);
+        }
+
         const onDeviceOnly = request.mode === 'only_on_device';
         if (onDeviceOnly && (error.code === AIErrorCode.API_NOT_ENABLED || error.code === AIErrorCode.UNSUPPORTED)) {
           throw new NoDeviceModelError();
         }
-        if (!onDeviceOnly && error.code === AIErrorCode.FETCH_ERROR) throw new OfflineError();
+        // No response at all: the SDK wraps the failed fetch as ERROR "AI: Error fetching from …".
+        if (!onDeviceOnly && error.code === AIErrorCode.ERROR && error.message.includes('Error fetching from')) {
+          throw new OfflineError();
+        }
       }
       throw error;
     }

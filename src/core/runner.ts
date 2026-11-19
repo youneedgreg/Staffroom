@@ -5,7 +5,7 @@
  * calls the engine, checks where the work really ran, and writes the ledger.
  */
 import type { Engine } from '../engine/engine';
-import { NoDeviceModelError, OfflineError } from '../engine/engine';
+import { CloudRefusedError, NoDeviceModelError, OfflineError } from '../engine/engine';
 import { checkOutbound, outboundText, type GuardContext, type GuardHit } from './guard';
 import { newEntry, type LedgerEntry } from './ledger';
 import { canReachCloud, resolveMode, TASKS, type Settings } from './policy';
@@ -20,7 +20,7 @@ export interface RunContext {
   record: (entry: LedgerEntry) => void | Promise<void>;
 }
 
-export type ErrorKind = 'no_device_model' | 'offline' | 'invariant' | 'other';
+export type ErrorKind = 'no_device_model' | 'offline' | 'refused' | 'invariant' | 'other';
 
 export type RunResult =
   | { status: 'ok'; text: string; source: InferenceSource; sources: WebSource[]; searchHtml?: string; entry: LedgerEntry }
@@ -32,6 +32,8 @@ export const ERROR_TEXT: Record<ErrorKind, string> = {
   no_device_model:
     'This browser has no on-device model, so this cannot run here. Learner data is never sent to the cloud instead.',
   offline: 'This needs the internet and it could not be reached. Nothing was sent.',
+  refused:
+    'The cloud service turned this request down, often because its free limit was reached. The question did leave this laptop: the Privacy ledger shows exactly what was sent.',
   invariant: 'Staffroom stopped this request because it broke a privacy rule. Please report it.',
   other: 'The model returned an error. Try again.',
 };
@@ -105,6 +107,21 @@ export async function runTask(ctx: RunContext, spec: PromptSpec): Promise<RunRes
       entry,
     };
   } catch (error) {
+    if (error instanceof CloudRefusedError) {
+      // The cloud answered with an error, so the text did leave. Log exactly what was sent.
+      const sent = `${spec.system}\n\n${spec.prompt}`;
+      const breach = task.touchesLearnerData || resolved.mode === 'only_on_device';
+      const entry = await finish({
+        outcome: 'error',
+        source: 'in_cloud',
+        sentChars: sent.length,
+        sentText: sent,
+        note: (breach ? `A learner-data request reached the cloud. ${error.message}` : `refused: ${error.message}`).slice(0, 300),
+      });
+      return breach
+        ? { status: 'error', kind: 'invariant', message: ERROR_TEXT.invariant, entry }
+        : { status: 'error', kind: 'refused', message: ERROR_TEXT.refused, entry };
+    }
     const kind: ErrorKind =
       error instanceof NoDeviceModelError ? 'no_device_model' : error instanceof OfflineError ? 'offline' : 'other';
     const detail = error instanceof Error ? error.message : String(error);

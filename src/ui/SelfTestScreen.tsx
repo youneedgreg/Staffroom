@@ -66,7 +66,14 @@ export function SelfTestScreen({ engine, settings, record }: Props) {
     };
     const add = (task: TaskId, ok: boolean, result: string) => {
       const e = last as LedgerEntry | null;
-      const ran = e?.source === 'on_device' ? 'On this laptop' : e?.source === 'in_cloud' ? 'In the cloud' : 'Did not run';
+      const ran =
+        e?.source === 'on_device'
+          ? 'On this laptop'
+          : e?.source === 'in_cloud'
+            ? e.outcome === 'error'
+              ? 'Sent to the cloud, refused'
+              : 'In the cloud'
+            : 'Did not run';
       setRows((current) => [
         ...current,
         { task, mode: resolveMode(task, settings).mode, ran, ms: e?.ms ?? 0, result, ok },

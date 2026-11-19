@@ -12,7 +12,7 @@ import { runTask, type RunContext } from '../src/core/runner';
 import { sampleClass } from '../src/core/sample';
 import type { Remark } from '../src/core/types';
 import { DemoEngine, type DemoOptions } from '../src/engine/demo';
-import type { Engine, EngineRequest, EngineResult } from '../src/engine/engine';
+import { CloudRefusedError, type Engine, type EngineRequest, type EngineResult } from '../src/engine/engine';
 import { browserStore, memoryStore, Repo } from '../src/store/store';
 
 const data = sampleClass();
@@ -80,7 +80,29 @@ describe('runTask: learner data', () => {
     expect(JSON.stringify(r)).not.toContain('leaked');
     expect(ledger[0]?.outcome).toBe('error');
   });
+
+  it('logs a remark that reached the cloud anyway, so the headline number can never hide it', async () => {
+    const { ctx, ledger } = setup({}, DEFAULT_SETTINGS, refusingEngine(500));
+    const spec = remarkSpec();
+    const r = await runTask(ctx, spec);
+    expect(r).toMatchObject({ status: 'error', kind: 'invariant' });
+    expect(ledger[0]).toMatchObject({ outcome: 'error', source: 'in_cloud', sentText: `${spec.system}\n\n${spec.prompt}` });
+    expect(summarise(ledger).learnerTasksInCloud).toBe(1);
+  });
 });
+
+/** An engine whose cloud answers every request with an HTTP error. */
+function refusingEngine(status: number): Engine {
+  return {
+    name: 'refusing',
+    simulated: true,
+    run: async (): Promise<EngineResult> => {
+      throw new CloudRefusedError(status, 'You exceeded your current quota');
+    },
+    deviceStatus: async () => 'available',
+    prepareDevice: async () => undefined,
+  };
+}
 
 describe('runTask: the curriculum question', () => {
   it('sends the question to the cloud and logs exactly what left', async () => {
@@ -103,6 +125,19 @@ describe('runTask: the curriculum question', () => {
     if (r.status === 'blocked') expect(r.hits.map((h) => h.match)).toEqual(['Felix', 'Sharon']);
     expect(demo.calls).toHaveLength(0);
     expect(ledger[0]).toMatchObject({ outcome: 'blocked', sentChars: 0 });
+  });
+
+  it('logs a question the cloud refused (HTTP 429) as sent, with the exact text', async () => {
+    const { ctx, ledger } = setup({}, DEFAULT_SETTINGS, refusingEngine(429));
+    const spec = planPrompt(pack, group, 'adding the tops and the bottoms');
+    const r = await runTask(ctx, spec);
+    expect(r).toMatchObject({ status: 'error', kind: 'refused' });
+    const entry = ledger[0]!;
+    expect(entry).toMatchObject({ outcome: 'error', source: 'in_cloud' });
+    expect(entry.sentText).toBe(`${spec.system}\n\n${spec.prompt}`);
+    expect(entry.sentChars).toBe(entry.sentText!.length);
+    expect(entry.note).toContain('HTTP 429');
+    expect(summarise(ledger)).toMatchObject({ charsSent: entry.sentChars, learnerTasksInCloud: 0 });
   });
 
   it('reports offline and sends nothing', async () => {
