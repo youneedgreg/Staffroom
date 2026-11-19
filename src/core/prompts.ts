@@ -121,7 +121,9 @@ export const DIFFICULTY_SYSTEM =
 
 export const DIFFICULTY_SCHEMA: Record<string, unknown> = {
   type: 'object',
-  properties: { difficulty: { type: 'string', maxLength: 160 } },
+  // No maxLength: on the device the schema is enforced while the model writes, so a
+  // length limit stops it mid-word ("…misinterpre"). The word limit is applied after.
+  properties: { difficulty: { type: 'string' } },
   required: ['difficulty'],
   additionalProperties: false,
 };

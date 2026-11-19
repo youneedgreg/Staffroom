@@ -15,6 +15,7 @@ import {
   parsePlan,
   plainWordsPrompt,
   planPrompt,
+  DIFFICULTY_SCHEMA,
   remarkInputHash,
   remarkPrompt,
 } from '../src/core/prompts';
@@ -96,6 +97,11 @@ describe('difficulty', () => {
     expect(spec.prompt).toContain('the learner copies from the learner');
     expect(spec.schema).toBeDefined();
     expect(spec.prompt.length).toBeLessThan(2000);
+  });
+
+  it('sets no length limit in the schema, which would stop the on-device model mid-word', () => {
+    const props = DIFFICULTY_SCHEMA.properties as Record<string, Record<string, unknown>>;
+    expect(props.difficulty).not.toHaveProperty('maxLength');
   });
 
   it('reads JSON, JSON with chatter around it, and plain text', () => {
