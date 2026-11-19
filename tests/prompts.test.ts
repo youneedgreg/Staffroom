@@ -16,6 +16,8 @@ import {
   plainWordsPrompt,
   planPrompt,
   DIFFICULTY_SCHEMA,
+  REMARK_SYSTEM,
+  remarkFocus,
   remarkInputHash,
   remarkPrompt,
 } from '../src/core/prompts';
@@ -84,6 +86,43 @@ describe('cleanRemark', () => {
 
   it('returns an empty string for an empty reply', () => {
     expect(cleanRemark('   ', 'x')).toBe('');
+  });
+});
+
+describe('remark focus: the strength and next step come from the levels', () => {
+  const levels = (l: Record<string, 'EE' | 'ME' | 'AE' | 'BE'>) => ({ learnerId: 'x', levels: l, note: '' });
+
+  it('never offers a topic the learner is behind in as the strength', () => {
+    const faith = byName('Faith Wambui');
+    const spec = remarkPrompt(pack, faith, data.assessments[faith.id]!, roster);
+    expect(spec.prompt).toContain('Strength: Whole Numbers and Multiplication.');
+    expect(spec.prompt).toContain('Next step: more practice in Fractions.');
+  });
+
+  it('takes the two best topics in curriculum order, and the first of the weakest as the next step', () => {
+    expect(remarkFocus(pack, levels({ division: 'EE', fractions: 'AE', decimals: 'EE', length: 'EE', 'whole-numbers': 'BE' })))
+      .toEqual({ strength: 'Division and Decimals', nextStep: 'more practice in Whole Numbers' });
+  });
+
+  it('asks for harder problems when every topic is at the same good level', () => {
+    expect(remarkFocus(pack, levels({ fractions: 'ME', decimals: 'ME' })))
+      .toEqual({ strength: 'Fractions and Decimals', nextStep: 'harder problems in Fractions' });
+  });
+
+  it('does not invent a strength when every topic is below expectation', () => {
+    const f = remarkFocus(pack, levels({ fractions: 'BE', decimals: 'BE' }));
+    expect(f.strength).toBe("effort, or a strength from the teacher's note");
+    expect(f.nextStep).toBe('more practice in Fractions');
+  });
+
+  it("falls back to the teacher's note when no level is set", () => {
+    expect(remarkFocus(pack, levels({})).strength).toContain("teacher's note");
+  });
+
+  it('tells the model to write in the third person and never praise a mistake in the note', () => {
+    expect(REMARK_SYSTEM).toContain('third person');
+    expect(REMARK_SYSTEM).toContain('Never write "you" or "your"');
+    expect(REMARK_SYSTEM).toContain('never praise it');
   });
 });
 

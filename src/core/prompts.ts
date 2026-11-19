@@ -11,7 +11,7 @@ import type { TaskId } from './policy';
 import { LEVELS, type Assessment, type CurriculumPack, type Learner, type Level, type SubStrand } from './types';
 
 /** Bump when a prompt changes, so saved remarks are redrafted. */
-export const PROMPT_VERSION = 1;
+export const PROMPT_VERSION = 2;
 
 export interface PromptSpec {
   task: TaskId;
@@ -56,10 +56,38 @@ export function clip(text: string, max: number): string {
 
 export const REMARK_SYSTEM =
   'You write end-of-term report remarks for a primary school class teacher in Kenya. ' +
-  `Write exactly two sentences, 45 words at most. Call the learner ${NAME_TOKEN}. ` +
-  'Sentence one names a real strength. Sentence two names one next step. ' +
+  `Write exactly two sentences, 45 words at most, about ${NAME_TOKEN} in the third person. ` +
+  'Never write "you" or "your". ' +
+  'Sentence one praises the strength given. Sentence two gives the next step given. ' +
+  'Use the topic names exactly as given and never swap one operation for another. ' +
+  "The teacher's note may describe a mistake: never praise it, use it only for the next step. " +
   'Use only the facts given. Be kind and specific. Plain British English. ' +
   'Do not use the level names or their initials. No lists, no quotation marks.';
+
+/**
+ * The strength and the next step are chosen here, from the levels, not by the model.
+ * The small model picked them itself before and praised a topic the learner was behind in.
+ */
+export function remarkFocus(pack: CurriculumPack, assessment: Assessment): { strength: string; nextStep: string } {
+  const rated = pack.subStrands
+    .map((s) => ({ name: s.name, rank: assessment.levels[s.id] ? LEVELS.indexOf(assessment.levels[s.id]!) : -1 }))
+    .filter((t) => t.rank >= 0);
+  if (rated.length === 0) {
+    return { strength: "take it from the teacher's note", nextStep: "take it from the teacher's note" };
+  }
+  const best = Math.min(...rated.map((t) => t.rank));
+  const worst = Math.max(...rated.map((t) => t.rank));
+  const top = rated.filter((t) => t.rank === best).slice(0, 2).map((t) => t.name);
+  const strength =
+    best === LEVELS.indexOf('BE') ? "effort, or a strength from the teacher's note" : top.join(' and ');
+  const nextStep =
+    worst > best
+      ? `more practice in ${rated.find((t) => t.rank === worst)!.name}`
+      : best === LEVELS.indexOf('BE')
+        ? `more practice in ${rated[0]!.name}`
+        : `harder problems in ${top[0]}`;
+  return { strength, nextStep };
+}
 
 export function remarkInputHash(pack: CurriculumPack, assessment: Assessment): string {
   const levels = pack.subStrands.map((s) => assessment.levels[s.id] ?? '-').join(',');
@@ -82,11 +110,14 @@ export function remarkPrompt(
   // The teacher's note may use the learner's own name. Swap it for the token, so the
   // model has one way to refer to the learner and code fills in the name afterwards.
   const note = prepareNote(assessment.note, learner, roster);
+  const focus = remarkFocus(pack, assessment);
   const prompt = [
     `Learning area: ${pack.learningArea}, ${pack.grade}.`,
     'Levels this term:',
     ...levelLines(pack, assessment),
     `Teacher's note: ${note.trim() ? clip(note, 400) : 'none'}`,
+    `Strength: ${focus.strength}.`,
+    `Next step: ${focus.nextStep}.`,
     `Write the remark for ${NAME_TOKEN}.`,
   ].join('\n');
   return { task: 'remark', system: REMARK_SYSTEM, prompt };
