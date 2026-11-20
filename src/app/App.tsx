@@ -14,6 +14,7 @@ import { StatusBar } from '../ui/StatusBar';
 import { EMPTY_SUPPORT, SupportScreen, type SupportMemory } from '../ui/SupportScreen';
 import type { Boot } from './boot';
 import { focusSoon } from '../ui/a11y';
+import { SchoolIcon } from '../ui/icons';
 
 const TABS = [
   { id: 'class', label: 'Class' },
@@ -148,18 +149,26 @@ export function App({ boot }: { boot: Boot }) {
     <>
       <a className="skip" href="#main">Skip to the page</a>
       <header className="top">
-        <h1>Staffroom</h1>
-        <p className="lead">Anything about a child stays on this laptop. Only curriculum questions reach the cloud.</p>
-        <nav aria-label="Sections">
-          <ul>
-            {TABS.map((t) => (
-              <li key={t.id}>
-                <a href={`#/${t.id}`} aria-current={tab === t.id ? 'page' : undefined}>{t.label}</a>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <div className="wrap">
+          <div className="brand">
+            <span className="mark"><SchoolIcon /></span>
+            <div>
+              <h1>Staffroom</h1>
+              <p className="lead">Anything about a child stays on this laptop. Only curriculum questions reach the cloud.</p>
+            </div>
+          </div>
+          <nav aria-label="Sections">
+            <ul>
+              {TABS.map((t) => (
+                <li key={t.id}>
+                  <a href={`#/${t.id}`} aria-current={tab === t.id ? 'page' : undefined}>{t.label}</a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </div>
       </header>
+      <div className="wrap">
       <StatusBar
         engine={engine}
         simulatedReason={boot.simulatedReason}
@@ -193,6 +202,7 @@ export function App({ boot }: { boot: Boot }) {
         {tab === 'selftest' && <SelfTestScreen engine={engine} settings={settings} record={record} />}
         {tab === 'about' && <AboutScreen settings={settings} />}
       </main>
+      </div>
     </>
   );
 }
