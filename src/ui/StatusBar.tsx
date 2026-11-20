@@ -62,6 +62,15 @@ export function StatusBar({ engine, simulatedReason, device, online, settings, l
           <dd data-testid="learner-cloud">{s.learnerTasksInCloud}</dd>
         </div>
       </dl>
+      {device === 'unavailable' && (
+        <p data-testid="no-model-note">
+          This browser has no on-device model. Report remarks, the group summary and parent notes stop here, and
+          nothing about a child is sent to the cloud instead.{' '}
+          {settings.policy === 'strict'
+            ? 'Your school allows nothing to leave the laptop, so nothing else runs here either.'
+            : 'The plan, the starter activity and plain words still work through the cloud.'}
+        </p>
+      )}
       {device === 'downloadable' && progress === null && (
         <button type="button" onClick={download}>Download the on-device model</button>
       )}

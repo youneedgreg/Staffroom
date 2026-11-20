@@ -16,7 +16,7 @@ import { askPlan, summariseDifficulty, writeParentNote, type Failure } from '../
 import { checkOutbound, describeHit } from '../core/guard';
 import { strugglingGroups, type Group } from '../core/groups';
 import { resolveMode, type Settings } from '../core/policy';
-import { ranText } from '../core/ledger';
+import { ranText, type LedgerEntry } from '../core/ledger';
 import {
   buildQuestion,
   lessonIdeaPrompt,
@@ -28,6 +28,7 @@ import {
 } from '../core/prompts';
 import { runTask, type RunContext } from '../core/runner';
 import type { ClassData, CurriculumPack, Plan } from '../core/types';
+import type { DeviceStatus } from '../engine/engine';
 import type { PlanLibrary } from '../firebase/services';
 
 interface Props {
@@ -36,6 +37,8 @@ interface Props {
   ctx: RunContext | null;
   settings: Settings;
   online: boolean;
+  /** Whether this browser has an on-device model. Used to say why a "device first" task ran in the cloud. */
+  device: DeviceStatus;
   /** The shared plan library. Null when it is not available (simulated engine). Used on Day 5. */
   library: PlanLibrary | null;
   plans: Plan[];
@@ -63,6 +66,8 @@ export interface GroupState {
   notes: Record<string, string>;
   busy?: 'summing' | 'asking' | 'writing';
   problem?: string;
+  /** Which step the problem belongs to, so it is shown under that step and nowhere else. */
+  problemAt?: 'sum' | 'ask' | 'notes';
   /** Route A: the grounded request was refused, so offer to send it without web sources. */
   offerPlain?: boolean;
   progress?: BatchProgress;
@@ -86,6 +91,12 @@ type Patch = Partial<GroupState> | ((current: GroupState) => Partial<GroupState>
 
 const EMPTY: GroupState = { free: '', notes: {} };
 
+/** Where a quick-help answer ran. A "device first" answer from the cloud says why, when there is no model here. */
+function quickRanText(entry: LedgerEntry, device: DeviceStatus): string {
+  const fellBack = device === 'unavailable' && entry.mode === 'prefer_on_device' && entry.source === 'in_cloud';
+  return fellBack ? `${ranText(entry)} (this browser has no on-device model)` : ranText(entry);
+}
+
 /** One sentence for any failed run, in the teacher's words. */
 export function failureText(f: Failure): string {
   if (f.status === 'error') return f.message;
@@ -93,7 +104,7 @@ export function failureText(f: Failure): string {
   return f.hits.map(describeHit).join(' ');
 }
 
-export function SupportScreen({ classData, pack, ctx, settings, online, plans, savePlans, memory, setMemory }: Props) {
+export function SupportScreen({ classData, pack, ctx, settings, online, device, plans, savePlans, memory, setMemory }: Props) {
   const { states, openId } = memory;
   const setOpenId = (id: string | null) => setMemory((m) => ({ ...m, openId: id }));
 
@@ -148,6 +159,7 @@ export function SupportScreen({ classData, pack, ctx, settings, online, plans, s
           ctx={ctx}
           settings={settings}
           online={online}
+          device={device}
           state={states[open.subStrand.id] ?? EMPTY}
           update={(patch) => update(open.subStrand.id, patch)}
           lastPlan={[...plans].reverse().find((p) => p.packId === pack.id && p.subStrandId === open.subStrand.id)}
@@ -165,13 +177,14 @@ interface PanelProps {
   ctx: RunContext;
   settings: Settings;
   online: boolean;
+  device: DeviceStatus;
   state: GroupState;
   update: (patch: Patch) => void;
   lastPlan?: Plan;
   onPlan: (plan: Plan) => void;
 }
 
-function GroupPanel({ group, pack, classData, ctx, settings, online, state, update, lastPlan, onPlan }: PanelProps) {
+function GroupPanel({ group, pack, classData, ctx, settings, online, device, state, update, lastPlan, onPlan }: PanelProps) {
   // 2. The question, rebuilt and re-checked on every keystroke.
   const message = useMemo(() => buildQuestion(pack, group, state.free), [pack, group, state.free]);
   const verdict = useMemo(() => checkOutbound(message, ctx.guard), [message, ctx.guard]);
@@ -183,13 +196,20 @@ function GroupPanel({ group, pack, classData, ctx, settings, online, state, upda
     update({ busy: 'summing', problem: undefined });
     const result = await summariseDifficulty(ctx, pack, classData, group);
     if ('failure' in result) {
-      update({ busy: undefined, problem: failureText(result.failure) });
+      const f = result.failure;
+      const noModel = f.status === 'error' && f.kind === 'no_device_model';
+      update({
+        busy: undefined,
+        problem: noModel ? `${failureText(f)} You can type the difficulty yourself in step 2.` : failureText(f),
+        problemAt: 'sum',
+      });
       return;
     }
     update({
       busy: undefined,
       free: result.difficulty,
       problem: result.difficulty ? undefined : 'There are no notes for this group, so there was nothing to sum up. Type the difficulty yourself.',
+      problemAt: 'sum',
     });
   };
 
@@ -211,7 +231,7 @@ function GroupPanel({ group, pack, classData, ctx, settings, online, state, upda
     if ('failure' in result) {
       const f = result.failure;
       const refused = search && f.status === 'error' && f.kind === 'refused';
-      update({ busy: undefined, problem: failureText(f), offerPlain: refused });
+      update({ busy: undefined, problem: failureText(f), problemAt: 'ask', offerPlain: refused });
       return;
     }
     onPlan(result.plan);
@@ -245,6 +265,7 @@ function GroupPanel({ group, pack, classData, ctx, settings, online, state, upda
       stop: undefined,
       progress: outcome,
       problem: outcome.failed > 0 || (outcome.stopped && problem) ? problem : undefined,
+      problemAt: 'notes',
     });
   };
 
@@ -265,6 +286,9 @@ function GroupPanel({ group, pack, classData, ctx, settings, online, state, upda
             {state.busy === 'summing' ? 'Summing up…' : 'Sum up the difficulty'}
           </button>
         </p>
+        {state.problem && state.problemAt === 'sum' && (
+          <p role="alert" className="bad" data-testid="sum-problem">{state.problem}</p>
+        )}
       </div>
 
       {/* 3. The outbound preview: everything that will leave, in full. */}
@@ -344,7 +368,9 @@ function GroupPanel({ group, pack, classData, ctx, settings, online, state, upda
           </p>
         </div>
       ) : (
-        state.problem && <p role="alert" className="bad" data-testid="support-problem">{state.problem}</p>
+        state.problem && state.problemAt === 'ask' && (
+          <p role="alert" className="bad" data-testid="support-problem">{state.problem}</p>
+        )
       )}
 
       {lastPlan && parsed && (
@@ -371,6 +397,9 @@ function GroupPanel({ group, pack, classData, ctx, settings, online, state, upda
                 </span>
               )}
             </p>
+            {state.problem && state.problemAt === 'notes' && (
+              <p role="alert" className="bad" data-testid="notes-problem">{state.problem}</p>
+            )}
             {Object.keys(state.notes).length > 0 && (
               <ul className="cards" data-testid="notes">
                 {group.learners
@@ -408,7 +437,7 @@ function GroupPanel({ group, pack, classData, ctx, settings, online, state, upda
           const result = await runTask(ctx, spec);
           set(
             result.status === 'ok'
-              ? { text: result.text.trim(), ran: ranText(result.entry) }
+              ? { text: result.text.trim(), ran: quickRanText(result.entry, device) }
               : { problem: failureText(result), ran: ranText(result.entry) },
           );
         }}

@@ -40,6 +40,14 @@ export function refusedByCloud(e: LedgerEntry): boolean {
   return (e.source === 'in_cloud' && e.outcome === 'error') || (e.source === 'on_device' && e.sentChars > 0);
 }
 
+/**
+ * True when a task stopped because this browser has no on-device model.
+ * That is the privacy rule working, not an error, so it is counted apart from failures.
+ */
+export function stoppedNoModel(e: LedgerEntry): boolean {
+  return e.outcome === 'error' && !e.source && (e.note ?? '').startsWith('no_device_model:');
+}
+
 /** The "Ran" wording used on the ledger and self-test screens. */
 export function ranText(e: LedgerEntry | null | undefined): string {
   if (!e?.source) return 'Did not run';
@@ -56,7 +64,10 @@ export interface LedgerSummary {
   refusedInCloud: number;
   blocked: number;
   disabled: number;
+  /** Real failures. Stops for a missing on-device model are in `noDeviceModel`. */
   errors: number;
+  /** Learner tasks that stopped because this browser has no on-device model. */
+  noDeviceModel: number;
   charsSent: number;
   /** Must always be zero. Shown on screen as the headline number. */
   learnerTasksInCloud: number;
@@ -71,12 +82,14 @@ export function summarise(entries: LedgerEntry[]): LedgerSummary {
     blocked: 0,
     disabled: 0,
     errors: 0,
+    noDeviceModel: 0,
     charsSent: 0,
     learnerTasksInCloud: 0,
   };
   for (const e of entries) {
     if (e.outcome === 'blocked') s.blocked += 1;
     else if (e.outcome === 'disabled') s.disabled += 1;
+    else if (stoppedNoModel(e)) s.noDeviceModel += 1;
     else if (e.outcome === 'error') s.errors += 1;
     if (e.source === 'on_device') s.onDevice += 1;
     if (e.source === 'in_cloud' && e.outcome !== 'error') s.inCloud += 1;

@@ -169,6 +169,7 @@ export function App({ boot }: { boot: Boot }) {
             ctx={ctx}
             settings={settings}
             online={online}
+            device={device}
             library={boot.plans}
             plans={plans}
             savePlans={savePlans}
