@@ -1,4 +1,4 @@
-import { ranText, summarise, type LedgerEntry } from '../core/ledger';
+import { ranText, stoppedNoModel, summarise, type LedgerEntry } from '../core/ledger';
 import { TASKS, type Mode } from '../core/policy';
 
 const MODE_TEXT: Record<Mode | 'disabled', string> = {
@@ -10,6 +10,12 @@ const MODE_TEXT: Record<Mode | 'disabled', string> = {
 };
 
 const OUTCOME_TEXT = { ok: 'Done', blocked: 'Blocked by the name check', disabled: 'Switched off', error: 'Failed' } as const;
+
+/** The Result cell. A stop for a missing on-device model is the rule working, so it isn't shown as a failure. */
+function resultText(e: LedgerEntry): string {
+  if (stoppedNoModel(e)) return 'Stopped: this browser has no on-device model. Nothing was sent.';
+  return `${OUTCOME_TEXT[e.outcome]}${e.note ? `: ${e.note}` : ''}`;
+}
 
 export function LedgerScreen({ ledger, onClear }: { ledger: LedgerEntry[]; onClear: () => void }) {
   const s = summarise(ledger);
@@ -28,6 +34,7 @@ export function LedgerScreen({ ledger, onClear }: { ledger: LedgerEntry[]; onCle
         <div className="tile"><dt>Sent to the cloud, refused</dt><dd data-testid="tile-refused">{s.refusedInCloud}</dd></div>
         <div className="tile"><dt>Characters sent</dt><dd data-testid="tile-chars">{s.charsSent}</dd></div>
         <div className="tile"><dt>Blocked by the name check</dt><dd>{s.blocked}</dd></div>
+        <div className="tile"><dt>Stopped, no on-device model</dt><dd data-testid="tile-no-model">{s.noDeviceModel}</dd></div>
         <div className="tile"><dt>Failed</dt><dd data-testid="tile-errors">{s.errors}</dd></div>
       </dl>
 
@@ -54,7 +61,7 @@ export function LedgerScreen({ ledger, onClear }: { ledger: LedgerEntry[]; onCle
                   <th scope="row">{TASKS[e.task].label}</th>
                   <td>{MODE_TEXT[e.mode]}</td>
                   <td>{ranText(e)}</td>
-                  <td>{OUTCOME_TEXT[e.outcome]}{e.note ? `: ${e.note}` : ''}</td>
+                  <td>{resultText(e)}</td>
                   <td>
                     {e.sentText ? (
                       <details>

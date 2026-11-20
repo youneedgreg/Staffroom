@@ -197,8 +197,12 @@ try {
     check('nothing was written', (await text(page, 'written-count')).startsWith('0 of 30'));
     await page.click('a[href="#/ledger"]');
     await page.waitForSelector('[data-testid="tile-errors"]');
-    check('ledger: 1 failure, 0 cloud runs, 0 characters sent',
-      (await text(page, 'tile-errors')) === '1' && (await text(page, 'tile-in-cloud')) === '0' && (await text(page, 'tile-chars')) === '0');
+    check('ledger: 1 stopped for no model, 0 failures, 0 cloud runs, 0 characters sent',
+      (await text(page, 'tile-no-model')) === '1' && (await text(page, 'tile-errors')) === '0' &&
+      (await text(page, 'tile-in-cloud')) === '0' && (await text(page, 'tile-chars')) === '0');
+    check('ledger: the row says stopped, with no error code',
+      (await page.locator('main tbody tr').first().innerText()).includes('Stopped: this browser has no on-device model. Nothing was sent.') &&
+      !(await page.locator('main').innerText()).includes('no_device_model'));
     await page.click('a[href="#/support"]');
     await page.click('[data-testid="groups"] li >> nth=0 >> text=Plan support');
     await page.click('text=Sum up the difficulty');
@@ -217,6 +221,12 @@ try {
       (await text(page, 'notes-problem')).includes('never sent to the cloud instead') && (await text(page, 'notes-progress')).startsWith('0 of 10'));
     check('parent notes: none shown', (await page.locator('[data-testid="notes"] li').count()) === 0);
     check('plain words, no model: falls back to the cloud', (await quick(page, 'plainWords')) === 'In the cloud');
+    await page.click('a[href="#/selftest"]');
+    await page.click('text=Run the self-test');
+    await page.waitForSelector('[data-testid="selftest-no-model"]');
+    const rows = await page.locator('[data-testid="selftest"] tbody tr').allInnerTexts();
+    check('self-test, no model: the three learner rows say stopped, as designed',
+      rows.filter((r) => r.includes('Stopped, as designed')).length === 3 && !rows.some((r) => r.includes('Failed')));
     await context.close();
   }
 

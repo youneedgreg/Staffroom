@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { CBC_G5_MATHS as pack } from '../core/curriculum';
 import { askPlan, draftRemark, summariseDifficulty, writeParentNote, type Failure } from '../core/flows';
 import { strugglingGroups } from '../core/groups';
-import { ranText, type LedgerEntry } from '../core/ledger';
+import { ranText, stoppedNoModel, type LedgerEntry } from '../core/ledger';
 import { MODE_TEXT, resolveMode, TASKS, type Mode, type Settings, type TaskId } from '../core/policy';
 import { lessonIdeaPrompt, plainWordsPrompt } from '../core/prompts';
 import { runTask, type RunContext } from '../core/runner';
@@ -21,6 +21,8 @@ interface Row {
   ms: number;
   result: string;
   ok: boolean;
+  /** Stopped because this browser has no on-device model: the rule working, not a failure. */
+  stopped: boolean;
 }
 
 function failureText(f: Failure): string {
@@ -61,7 +63,7 @@ export function SelfTestScreen({ engine, settings, record }: Props) {
       const ran = ranText(e);
       setRows((current) => [
         ...current,
-        { task, mode: resolveMode(task, settings).mode, ran, ms: e?.ms ?? 0, result, ok },
+        { task, mode: resolveMode(task, settings).mode, ran, ms: e?.ms ?? 0, result, ok, stopped: !ok && !!e && stoppedNoModel(e) },
       ]);
       last = null;
     };
@@ -124,11 +126,19 @@ export function SelfTestScreen({ engine, settings, record }: Props) {
                   <td><code>{MODE_TEXT[r.mode]}</code></td>
                   <td>{r.ran}</td>
                   <td>{r.ms} ms</td>
-                  <td className={r.ok ? undefined : 'bad'}>{r.ok ? r.result : `Failed: ${r.result}`}</td>
+                  <td className={r.ok || r.stopped ? undefined : 'bad'}>
+                    {r.ok ? r.result : r.stopped ? `Stopped, as designed: ${r.result}` : `Failed: ${r.result}`}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          {rows.some((r) => r.stopped) && (
+            <p data-testid="selftest-no-model">
+              With no on-device model, the three learner tasks stop. That is what Staffroom is meant to do: nothing
+              about a child went to the cloud.
+            </p>
+          )}
         </div>
       )}
     </section>

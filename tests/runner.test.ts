@@ -5,7 +5,7 @@ import { CBC_G5_MATHS as pack } from '../src/core/curriculum';
 import { askPlan, draftRemark, needsRemark, summariseDifficulty, writeParentNote } from '../src/core/flows';
 import { findNames } from '../src/core/guard';
 import { strugglingGroups } from '../src/core/groups';
-import { ranText, summarise, trim, type LedgerEntry } from '../src/core/ledger';
+import { ranText, stoppedNoModel, summarise, trim, type LedgerEntry } from '../src/core/ledger';
 import { DEFAULT_SETTINGS, type Settings } from '../src/core/policy';
 import { lessonIdeaPrompt, plainWordsPrompt, planPrompt, remarkPrompt } from '../src/core/prompts';
 import { runTask, type RunContext } from '../src/core/runner';
@@ -64,6 +64,22 @@ describe('runTask: learner data', () => {
     expect(demo.calls[0]?.mode).toBe('only_on_device');
     expect(ledger[0]).toMatchObject({ outcome: 'error', sentChars: 0 });
     expect(summarise(ledger).inCloud).toBe(0);
+  });
+
+  it('counts a stop for a missing on-device model apart from real failures', async () => {
+    const { ctx, ledger } = setup({ device: 'unavailable', online: true });
+    await runTask(ctx, remarkSpec());
+    await runTask(ctx, plainWordsPrompt(pack, 'AE', group.subStrand));
+    const offline = setup({ device: 'available', online: false });
+    await runTask(offline.ctx, lessonIdeaPrompt(pack, group.subStrand));
+    await runTask(offline.ctx, planPrompt(pack, group, 'adding the tops and the bottoms'));
+    const s = summarise([...ledger, ...offline.ledger]);
+    expect(stoppedNoModel(ledger[0]!)).toBe(true);
+    expect(stoppedNoModel(ledger[1]!)).toBe(false);
+    expect(s.noDeviceModel).toBe(1);
+    expect(s.errors).toBe(1);
+    expect(s.inCloud).toBe(1);
+    expect(s.onDevice).toBe(1);
   });
 
   it('stops a lying engine that says a remark ran in the cloud', async () => {
