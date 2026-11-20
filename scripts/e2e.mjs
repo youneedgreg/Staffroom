@@ -509,6 +509,8 @@ try {
     await page.waitForSelector('[data-testid="batch-message"]');
     await press('nav a[href="#/support"]');
     await page.waitForSelector('[data-testid="groups"] li');
+    // The new tab moves focus to its heading on the next frame; wait for that, or it can take focus back mid-press.
+    await page.waitForFunction(() => document.activeElement?.tagName === 'H2');
     await press('[data-testid="groups"] li >> nth=0 >> text=Plan support');
     await page.waitForSelector('[data-testid="outbound"]');
     await press('text=Sum up the difficulty');
