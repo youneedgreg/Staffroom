@@ -97,18 +97,28 @@ describe('remark focus: the strength and next step come from the levels', () => 
   it('never offers a topic the learner is behind in as the strength', () => {
     const faith = byName('Faith Wambui');
     const spec = remarkPrompt(pack, faith, data.assessments[faith.id]!, roster);
-    expect(spec.prompt).toContain('Strength: Whole Numbers and Multiplication.');
+    expect(spec.prompt).toContain('Strength: secure work in Division and Decimals.');
     expect(spec.prompt).toContain('Next step: more practice in Fractions.');
   });
 
-  it('takes the two best topics in curriculum order, and the first of the weakest as the next step', () => {
+  it('takes two of the best topics, with words that fit the level, and the first of the weakest as the next step', () => {
     expect(remarkFocus(pack, levels({ division: 'EE', fractions: 'AE', decimals: 'EE', length: 'EE', 'whole-numbers': 'BE' })))
-      .toEqual({ strength: 'Division and Decimals', nextStep: 'more practice in Whole Numbers' });
+      .toEqual({ strength: 'excellent work in Division and Decimals', nextStep: 'more practice in Whole Numbers' });
+    // A best level of Approaching Expectation is never called strong.
+    expect(remarkFocus(pack, levels({ fractions: 'AE', decimals: 'BE' })).strength).toBe('growing confidence in Fractions');
   });
 
   it('asks for harder problems when every topic is at the same good level', () => {
     expect(remarkFocus(pack, levels({ fractions: 'ME', decimals: 'ME' })))
-      .toEqual({ strength: 'Fractions and Decimals', nextStep: 'harder problems in Fractions' });
+      .toEqual({ strength: 'secure work in Decimals and Fractions', nextStep: 'harder problems in Decimals' });
+  });
+
+  it('gives learners at the same level different topics, the same ones every time', () => {
+    const all = Object.fromEntries(pack.subStrands.map((s) => [s.id, 'ME' as const]));
+    const focus = ['a', 'b', 'c', 'd', 'e', 'f'].map((id) => remarkFocus(pack, { learnerId: id, levels: all, note: '' }));
+    expect(new Set(focus.map((f) => f.strength)).size).toBeGreaterThan(1);
+    for (const f of focus) expect(f.strength).not.toContain(f.nextStep.replace('harder problems in ', ''));
+    expect(remarkFocus(pack, { learnerId: 'a', levels: all, note: '' })).toEqual(focus[0]);
   });
 
   it('does not invent a strength when every topic is below expectation', () => {
