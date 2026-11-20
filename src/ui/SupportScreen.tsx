@@ -63,6 +63,8 @@ export interface GroupState {
   notes: Record<string, string>;
   busy?: 'summing' | 'asking' | 'writing';
   problem?: string;
+  /** Which step the problem belongs to, so it is shown under that step and nowhere else. */
+  problemAt?: 'sum' | 'ask' | 'notes';
   /** Route A: the grounded request was refused, so offer to send it without web sources. */
   offerPlain?: boolean;
   progress?: BatchProgress;
@@ -183,13 +185,20 @@ function GroupPanel({ group, pack, classData, ctx, settings, online, state, upda
     update({ busy: 'summing', problem: undefined });
     const result = await summariseDifficulty(ctx, pack, classData, group);
     if ('failure' in result) {
-      update({ busy: undefined, problem: failureText(result.failure) });
+      const f = result.failure;
+      const noModel = f.status === 'error' && f.kind === 'no_device_model';
+      update({
+        busy: undefined,
+        problem: noModel ? `${failureText(f)} You can type the difficulty yourself in step 2.` : failureText(f),
+        problemAt: 'sum',
+      });
       return;
     }
     update({
       busy: undefined,
       free: result.difficulty,
       problem: result.difficulty ? undefined : 'There are no notes for this group, so there was nothing to sum up. Type the difficulty yourself.',
+      problemAt: 'sum',
     });
   };
 
@@ -211,7 +220,7 @@ function GroupPanel({ group, pack, classData, ctx, settings, online, state, upda
     if ('failure' in result) {
       const f = result.failure;
       const refused = search && f.status === 'error' && f.kind === 'refused';
-      update({ busy: undefined, problem: failureText(f), offerPlain: refused });
+      update({ busy: undefined, problem: failureText(f), problemAt: 'ask', offerPlain: refused });
       return;
     }
     onPlan(result.plan);
@@ -245,6 +254,7 @@ function GroupPanel({ group, pack, classData, ctx, settings, online, state, upda
       stop: undefined,
       progress: outcome,
       problem: outcome.failed > 0 || (outcome.stopped && problem) ? problem : undefined,
+      problemAt: 'notes',
     });
   };
 
@@ -265,6 +275,9 @@ function GroupPanel({ group, pack, classData, ctx, settings, online, state, upda
             {state.busy === 'summing' ? 'Summing up…' : 'Sum up the difficulty'}
           </button>
         </p>
+        {state.problem && state.problemAt === 'sum' && (
+          <p role="alert" className="bad" data-testid="sum-problem">{state.problem}</p>
+        )}
       </div>
 
       {/* 3. The outbound preview: everything that will leave, in full. */}
@@ -344,7 +357,9 @@ function GroupPanel({ group, pack, classData, ctx, settings, online, state, upda
           </p>
         </div>
       ) : (
-        state.problem && <p role="alert" className="bad" data-testid="support-problem">{state.problem}</p>
+        state.problem && state.problemAt === 'ask' && (
+          <p role="alert" className="bad" data-testid="support-problem">{state.problem}</p>
+        )
       )}
 
       {lastPlan && parsed && (
@@ -371,6 +386,9 @@ function GroupPanel({ group, pack, classData, ctx, settings, online, state, upda
                 </span>
               )}
             </p>
+            {state.problem && state.problemAt === 'notes' && (
+              <p role="alert" className="bad" data-testid="notes-problem">{state.problem}</p>
+            )}
             {Object.keys(state.notes).length > 0 && (
               <ul className="cards" data-testid="notes">
                 {group.learners

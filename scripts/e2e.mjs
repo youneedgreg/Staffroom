@@ -202,15 +202,19 @@ try {
     await page.click('a[href="#/support"]');
     await page.click('[data-testid="groups"] li >> nth=0 >> text=Plan support');
     await page.click('text=Sum up the difficulty');
-    await page.waitForSelector('[data-testid="support-problem"]');
-    check('support: sum up refuses with no on-device model', (await text(page, 'support-problem')).includes('never sent to the cloud instead'));
+    await page.waitForSelector('[data-testid="sum-problem"]');
+    check('support: sum up refuses under step 1 and says to type the difficulty',
+      (await text(page, 'sum-problem')).includes('never sent to the cloud instead') &&
+      (await text(page, 'sum-problem')).includes('type the difficulty yourself in step 2'));
     await page.fill('[data-testid="outbound-free"]', 'adding the tops and the bottoms');
     await page.click('[data-testid="ask"]');
     await page.waitForSelector('[data-testid="write-notes"]');
+    check('support: no refusal left under "Ask the cloud" once the plan is in',
+      (await page.locator('[data-testid="support-problem"]').count()) === 0);
     await page.click('[data-testid="write-notes"]');
     await page.waitForFunction(() => document.querySelector('[data-testid="notes-progress"]')?.textContent?.includes('notes written'));
     check('parent notes: refused with no on-device model, not sent to the cloud',
-      (await text(page, 'support-problem')).includes('never sent to the cloud instead') && (await text(page, 'notes-progress')).startsWith('0 of 10'));
+      (await text(page, 'notes-problem')).includes('never sent to the cloud instead') && (await text(page, 'notes-progress')).startsWith('0 of 10'));
     check('parent notes: none shown', (await page.locator('[data-testid="notes"] li').count()) === 0);
     check('plain words, no model: falls back to the cloud', (await quick(page, 'plainWords')) === 'In the cloud');
     await context.close();
