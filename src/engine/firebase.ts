@@ -20,7 +20,7 @@ import {
 import type { Mode } from '../core/policy';
 import type { WebSource } from '../core/types';
 import type { DeviceStatus, Engine, EngineRequest, EngineResult } from './engine';
-import { CloudRefusedError, NoDeviceModelError, OfflineError } from './engine';
+import { CLOUD_TIMEOUT_MS, CloudRefusedError, CloudTimeoutError, NoDeviceModelError, OfflineError } from './engine';
 
 const SDK_MODE: Record<Mode, InferenceMode> = {
   only_on_device: InferenceMode.ONLY_ON_DEVICE,
@@ -164,7 +164,10 @@ export class FirebaseEngine implements Engine {
     }
 
     try {
-      const { response } = await this.model(request).generateContent(parts);
+      // Anything that can reach the cloud stops waiting after CLOUD_TIMEOUT_MS; the SDK would wait 180 s.
+      // The limit applies to the cloud fetch only, never to a run on this laptop.
+      const options = request.mode === 'only_on_device' ? undefined : { timeout: CLOUD_TIMEOUT_MS };
+      const { response } = await this.model(request).generateContent(parts, options);
       const source =
         response.inferenceSource ??
         (request.mode === 'only_on_device' ? 'on_device' : request.mode === 'only_in_cloud' ? 'in_cloud' : undefined);
@@ -187,6 +190,11 @@ export class FirebaseEngine implements Engine {
         ...(refusedBeforeFallback ? { refusedBeforeFallback } : {}),
       };
     } catch (error) {
+      // The SDK aborts its fetch at the time limit and rethrows the AbortError as it is.
+      // The request had been sent, so this is not "offline": the ledger must count it as sent.
+      if (request.mode !== 'only_on_device' && error instanceof Error && error.name === 'AbortError') {
+        throw new CloudTimeoutError();
+      }
       if (error instanceof AIError) {
         // An HTTP status means the request reached Google and got an answer back,
         // so the prompt left the laptop (firebase 13.3.0 sets it on FETCH_ERROR and API_NOT_ENABLED).

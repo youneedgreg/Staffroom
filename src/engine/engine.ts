@@ -56,6 +56,20 @@ export class OfflineError extends Error {
   }
 }
 
+/** How long Staffroom waits for the cloud before it stops waiting. The SDK's own default is 180 s. */
+export const CLOUD_TIMEOUT_MS = 30_000;
+
+/**
+ * Thrown when the request was sent to the cloud and no answer came back in time.
+ * The prompt did leave the laptop, so the ledger must record it as sent.
+ */
+export class CloudTimeoutError extends Error {
+  constructor(readonly ms = CLOUD_TIMEOUT_MS) {
+    super(`The cloud did not answer within ${Math.round(ms / 1000)} seconds.`);
+    this.name = 'CloudTimeoutError';
+  }
+}
+
 /**
  * Thrown when the request reached the cloud and the cloud turned it down
  * (for example HTTP 429, over the free quota). The prompt did leave the laptop,

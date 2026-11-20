@@ -1,6 +1,13 @@
 import { AIError, AIErrorCode, type AI } from 'firebase/ai';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CloudRefusedError, NoDeviceModelError, OfflineError, type EngineRequest } from '../src/engine/engine';
+import {
+  CLOUD_TIMEOUT_MS,
+  CloudRefusedError,
+  CloudTimeoutError,
+  NoDeviceModelError,
+  OfflineError,
+  type EngineRequest,
+} from '../src/engine/engine';
 import { FirebaseEngine, resetFetchWatchForTests } from '../src/engine/firebase';
 
 // Only the model factory is replaced: the errors are the SDK's own classes.
@@ -49,6 +56,30 @@ describe('FirebaseEngine: how SDK errors are reported', () => {
   it('reports a request that got no response as offline', async () => {
     generateContent.mockRejectedValue(new AIError(AIErrorCode.ERROR, 'Error fetching from https://x: Failed to fetch'));
     await expect(engine().run(request('only_in_cloud'))).rejects.toBeInstanceOf(OfflineError);
+  });
+
+  it('gives every request that can reach the cloud a 30-second limit, and none to an on-device-only one', async () => {
+    vi.stubGlobal('LanguageModel', { availability: async () => 'available' });
+    generateContent.mockResolvedValue({ response: { inferenceSource: 'in_cloud', text: () => 'ok' } });
+    for (const mode of ['only_in_cloud', 'prefer_in_cloud', 'prefer_on_device'] as const) {
+      generateContent.mockClear();
+      await engine().run(request(mode));
+      expect(generateContent.mock.calls[0]?.[1]).toEqual({ timeout: CLOUD_TIMEOUT_MS });
+    }
+    generateContent.mockClear();
+    generateContent.mockResolvedValue({ response: { inferenceSource: 'on_device', text: () => 'ok' } });
+    await engine().run(request('only_on_device'));
+    expect(generateContent.mock.calls[0]?.[1]).toBeUndefined();
+    expect(CLOUD_TIMEOUT_MS).toBe(30_000);
+  });
+
+  it('reports a request the SDK stopped waiting for as timed out, not as offline', async () => {
+    generateContent.mockRejectedValue(new DOMException('signal is aborted without reason', 'AbortError'));
+    for (const mode of ['only_in_cloud', 'prefer_in_cloud'] as const) {
+      const error = await engine().run(request(mode)).catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(CloudTimeoutError);
+      expect((error as Error).message).toBe('The cloud did not answer within 30 seconds.');
+    }
   });
 
   it('reports a missing on-device model for an on-device-only request', async () => {

@@ -145,3 +145,18 @@ The cloud model in the task-map caption was `gemini-3.5-flash-lite` throughout.
 **Pass:** with no model, all 5 learner-task runs (remarks, the group summary, a parent note) stopped and sent nothing, and the curriculum tasks still worked through the cloud.
 
 **Not checked:** Safari and Firefox, which have no `LanguageModel` at all (Claude can only view Safari, not click in it). The engine reports `unavailable` for a missing API too, so they should look the same.
+
+## Fri 20 Nov 2026 — Remote Config `cloud_model`, changed live (last Day-4 item)
+
+**Setup:** my Chrome, dev server, real Firebase engine, `main` at `c392574`, invented sample class, Support screen open. The page was loaded at about 07:22:46 and not reloaded during the check. The model's name appears in each request's address (`…/models/<name>:generateContent`), which is how the model was confirmed. The ledger doesn't record the model.
+
+| Published | Caption in "Which task runs where" | Starter activity (`PREFER_IN_CLOUD`) |
+|---|---|---|
+| Version 4, `cloud_model` = `gemini-3.5-flash` | Changed between 07:24:45 and 07:24:51, no reload | Request to `models/gemini-3.5-flash`, HTTP 200, answered "In the cloud" after **151.6 s**; the button showed "Working…" the whole time |
+| Version 5, back to `gemini-3.5-flash-lite` | Back by 07:29:58, no reload | (the next starter, after a reload: "In the cloud", 1.8 s) |
+
+**Pass:** a model published in Remote Config reaches the open app live, and the next cloud request uses it.
+
+**Found:**
+- One run each, so not a measurement, but the gap is large: `gemini-3.5-flash` took 151.6 s where `gemini-3.5-flash-lite` took 1.8–2.6 s. Staffroom stays on `gemini-3.5-flash-lite`.
+- The app had no time limit of its own, and the SDK waits up to 180 s. Had the SDK given up, the ledger would have logged the request as "nothing sent", which is false. Fixed on `fix/cloud-timeout`: Staffroom stops waiting after 30 seconds, says so, and logs the request as sent with its exact text. Checked with the simulated engine (`&cloud=slow`) and unit tests. A real timeout on the real engine wasn't reproduced.

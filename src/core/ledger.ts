@@ -35,7 +35,15 @@ export function leftLaptop(e: LedgerEntry): boolean {
   return e.source === 'in_cloud' || e.sentChars > 0;
 }
 
-/** True when the text was sent and the cloud turned it down (whatever ran afterwards). */
+/** True when the text was sent to the cloud and no answer came back in time. */
+export function timedOutInCloud(e: LedgerEntry): boolean {
+  return e.source === 'in_cloud' && e.outcome === 'error' && (e.note ?? '').startsWith('timeout:');
+}
+
+/**
+ * True when the text was sent and the cloud did not answer it: turned down, or no answer in time
+ * (whatever ran afterwards).
+ */
 export function refusedByCloud(e: LedgerEntry): boolean {
   return (e.source === 'in_cloud' && e.outcome === 'error') || (e.source === 'on_device' && e.sentChars > 0);
 }
@@ -51,7 +59,10 @@ export function stoppedNoModel(e: LedgerEntry): boolean {
 /** The "Ran" wording used on the ledger and self-test screens. */
 export function ranText(e: LedgerEntry | null | undefined): string {
   if (!e?.source) return 'Did not run';
-  if (e.source === 'in_cloud') return e.outcome === 'error' ? 'Sent to the cloud, refused' : 'In the cloud';
+  if (e.source === 'in_cloud') {
+    if (e.outcome !== 'error') return 'In the cloud';
+    return timedOutInCloud(e) ? 'Sent to the cloud, no answer in time' : 'Sent to the cloud, refused';
+  }
   return e.sentChars > 0 ? 'On this laptop, after the cloud refused' : 'On this laptop';
 }
 
@@ -60,7 +71,7 @@ export interface LedgerSummary {
   onDevice: number;
   /** Requests the cloud actually answered. Refused ones are counted in `refusedInCloud`. */
   inCloud: number;
-  /** Requests sent to the cloud and turned down. The text still left the laptop. */
+  /** Requests sent to the cloud and not answered: turned down, or no answer in time. The text still left the laptop. */
   refusedInCloud: number;
   blocked: number;
   disabled: number;

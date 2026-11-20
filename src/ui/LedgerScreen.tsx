@@ -1,4 +1,4 @@
-import { ranText, stoppedNoModel, summarise, type LedgerEntry } from '../core/ledger';
+import { ranText, stoppedNoModel, summarise, timedOutInCloud, type LedgerEntry } from '../core/ledger';
 import { TASKS, type Mode } from '../core/policy';
 
 const MODE_TEXT: Record<Mode | 'disabled', string> = {
@@ -14,6 +14,7 @@ const OUTCOME_TEXT = { ok: 'Done', blocked: 'Blocked by the name check', disable
 /** The Result cell. A stop for a missing on-device model is the rule working, so it isn't shown as a failure. */
 function resultText(e: LedgerEntry): string {
   if (stoppedNoModel(e)) return 'Stopped: this browser has no on-device model. Nothing was sent.';
+  if (timedOutInCloud(e)) return 'Failed: the cloud did not answer within 30 seconds.';
   return `${OUTCOME_TEXT[e.outcome]}${e.note ? `: ${e.note}` : ''}`;
 }
 
@@ -31,7 +32,7 @@ export function LedgerScreen({ ledger, onClear }: { ledger: LedgerEntry[]; onCle
         </div>
         <div className="tile"><dt>Ran on this laptop</dt><dd data-testid="tile-on-device">{s.onDevice}</dd></div>
         <div className="tile"><dt>Ran in the cloud</dt><dd data-testid="tile-in-cloud">{s.inCloud}</dd></div>
-        <div className="tile"><dt>Sent to the cloud, refused</dt><dd data-testid="tile-refused">{s.refusedInCloud}</dd></div>
+        <div className="tile"><dt>Sent to the cloud, not answered</dt><dd data-testid="tile-refused">{s.refusedInCloud}</dd></div>
         <div className="tile"><dt>Characters sent</dt><dd data-testid="tile-chars">{s.charsSent}</dd></div>
         <div className="tile"><dt>Blocked by the name check</dt><dd>{s.blocked}</dd></div>
         <div className="tile"><dt>Stopped, no on-device model</dt><dd data-testid="tile-no-model">{s.noDeviceModel}</dd></div>

@@ -4,7 +4,7 @@
  * on a machine with no on-device model and no Firebase project.
  */
 import type { DeviceStatus, Engine, EngineRequest, EngineResult } from './engine';
-import { CloudRefusedError, NoDeviceModelError, OfflineError } from './engine';
+import { CloudRefusedError, CloudTimeoutError, NoDeviceModelError, OfflineError } from './engine';
 import type { InferenceSource } from '../core/types';
 
 export interface DemoOptions {
@@ -13,6 +13,8 @@ export interface DemoOptions {
   delayMs: number;
   /** 'refused' turns down every grounded request with HTTP 429, as the free tier does (check 9). */
   grounding: 'ok' | 'refused';
+  /** 'slow' makes every request that reaches the cloud go unanswered until the time limit. */
+  cloud: 'ok' | 'slow';
 }
 
 const RANK = ['Exceeding Expectation', 'Meeting Expectation', 'Approaching Expectation', 'Below Expectation'];
@@ -62,7 +64,7 @@ export class DemoEngine implements Engine {
   options: DemoOptions;
 
   constructor(options: Partial<DemoOptions> = {}) {
-    this.options = { device: 'available', online: true, delayMs: 0, grounding: 'ok', ...options };
+    this.options = { device: 'available', online: true, delayMs: 0, grounding: 'ok', cloud: 'ok', ...options };
   }
 
   private where(mode: EngineRequest['mode']): InferenceSource {
@@ -90,6 +92,8 @@ export class DemoEngine implements Engine {
     this.calls.push(request);
     if (this.options.delayMs > 0) await new Promise((r) => setTimeout(r, this.options.delayMs));
     const source = this.where(request.mode);
+    // The real SDK does not fall back to the device after a timeout, so neither does this.
+    if (source === 'in_cloud' && this.options.cloud === 'slow') throw new CloudTimeoutError();
     if (request.search && source === 'in_cloud' && this.options.grounding === 'refused') {
       throw new CloudRefusedError(429, 'Grounding with Google Search is not available (simulated)');
     }
