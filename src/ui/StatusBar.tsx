@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { summarise, type LedgerEntry } from '../core/ledger';
 import { MODE_TEXT, resolveMode, TASK_IDS, TASKS, type Settings } from '../core/policy';
 import type { DeviceStatus, Engine } from '../engine/engine';
+import { LaptopIcon, ShieldIcon, SignalIcon } from './icons';
 
 const DEVICE_TEXT: Record<DeviceStatus, string> = {
   available: 'ready',
@@ -44,20 +45,20 @@ export function StatusBar({ engine, simulatedReason, device, online, settings, l
           <strong>Simulated.</strong> {simulatedReason} No model is running.
         </p>
       )}
-      <dl>
-        <div>
-          <dt>On-device model</dt>
+      <dl className="pills">
+        <div className={device === 'available' ? 'pill laptop' : 'pill'}>
+          <dt><LaptopIcon />On-device model</dt>
           <dd data-testid="device-status">{DEVICE_TEXT[device]}</dd>
         </div>
-        <div>
-          <dt>Connection</dt>
+        <div className="pill">
+          <dt><SignalIcon />Connection</dt>
           <dd>{online ? 'online' : 'offline'}</dd>
         </div>
-        <div>
-          <dt>School policy</dt>
+        <div className="pill">
+          <dt><ShieldIcon />School policy</dt>
           <dd>{settings.policy === 'strict' ? 'nothing leaves this laptop' : 'curriculum questions may use the cloud'}</dd>
         </div>
-        <div>
+        <div className="pill count">
           <dt>Learner tasks sent to the cloud</dt>
           <dd data-testid="learner-cloud">{s.learnerTasksInCloud}</dd>
         </div>

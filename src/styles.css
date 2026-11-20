@@ -1,19 +1,32 @@
+/* Direction A, "Clear desk". Teal means on this laptop, orange means in the cloud: the same pair everywhere. */
 :root {
-  --ink: #1a1a1a; --paper: #ffffff; --soft: #f3f4f2; --line: #6b6b6b; --accent: #14532d; --on-accent: #ffffff;
-  --good: #14532d; --bad: #a3271f; --warn-bg: #fff4d6; --warn-ink: #5c3d00;
+  --ink: #15191e; --line: #4a5260; --page: #f6f7f9; --paper: #ffffff; --soft: #eef0f3;
+  --edge: #8a939f; --hair: #e2e5ea;
+  --accent: #0f5e5a; --on-accent: #ffffff;
+  --laptop: #0f5e5a; --laptop-bg: #e3f1ef; --cloud: #9a4a00; --cloud-bg: #fdeedc;
+  --good: #0f5e5a; --bad: #a3271f; --warn-bg: #fff4d6; --warn-ink: #5c3d00;
+  --radius: 10px; --shadow: 0 1px 2px rgb(21 25 30 / 6%), 0 4px 12px rgb(21 25 30 / 5%);
+  --sans: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --ink: #f2f2f2; --paper: #121412; --soft: #1e221e; --line: #a0a0a0; --accent: #86d69e; --on-accent: #0b1f12;
-    --good: #86d69e; --bad: #ff9a90; --warn-bg: #3a2f10; --warn-ink: #ffe2a0;
+    --ink: #eef1f4; --line: #a9b2bc; --page: #0f1316; --paper: #171c20; --soft: #20272c;
+    --edge: #7b858f; --hair: #2a3238;
+    --accent: #6fd1c6; --on-accent: #08201e;
+    --laptop: #6fd1c6; --laptop-bg: #12302d; --cloud: #f4b26b; --cloud-bg: #3a2610;
+    --good: #6fd1c6; --bad: #ff9a90; --warn-bg: #3a2f10; --warn-ink: #ffe2a0;
+    --shadow: none;
   }
 }
 * { box-sizing: border-box; }
-html { font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink); background: var(--paper); }
-body { margin: 0 auto; max-width: 72rem; padding: 0 1rem 4rem; }
-h1 { font-size: 1.6rem; margin: 1rem 0 0; }
-h2 { font-size: 1.3rem; margin: 1.5rem 0 0.5rem; }
+html { font: 16px/1.5 var(--sans); color: var(--ink); background: var(--page); }
+body { margin: 0; padding: 0 0 4rem; }
+code, pre { font-family: var(--mono); }
+.wrap { max-width: 74rem; margin: 0 auto; padding: 0 1.5rem; }
+h1 { font-size: 1.6rem; margin: 1rem 0 0; letter-spacing: -0.01em; }
+h2 { font-size: 1.4rem; margin: 1.5rem 0 0.5rem; letter-spacing: -0.01em; }
 h3 { font-size: 1.05rem; margin: 0; }
 a { color: var(--accent); }
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
@@ -23,14 +36,36 @@ a { color: var(--accent); }
 .lead { margin: 0.25rem 0 0.75rem; }
 .quiet { color: var(--line); font-size: 0.9rem; }
 .small { font-size: 0.9rem; }
-nav ul { display: flex; flex-wrap: wrap; gap: 0.25rem; list-style: none; padding: 0; margin: 0; border-bottom: 1px solid var(--line); }
-nav a { display: block; padding: 0.6rem 0.9rem; text-decoration: none; border-bottom: 3px solid transparent; min-height: 44px; }
-nav a[aria-current="page"] { border-bottom-color: var(--accent); font-weight: 600; }
-.status { background: var(--soft); border-radius: 8px; padding: 0.5rem 1rem; margin-top: 1rem; }
-.status dl, .tiles { display: flex; flex-wrap: wrap; gap: 0.5rem 2rem; margin: 0.25rem 0; }
-.status dt, .tiles dt { font-size: 0.8rem; color: var(--line); }
-.status dd, .tiles dd { margin: 0; font-weight: 600; }
-.tiles { gap: 0.75rem; }
+/* The header: a white band across the page with the name, the promise and the sections. */
+.top { background: var(--paper); border-bottom: 1px solid var(--hair); }
+.top .wrap { padding-top: 1rem; }
+.brand { display: flex; align-items: center; gap: 0.75rem; }
+.brand h1 { font-size: 1.25rem; margin: 0; line-height: 1.3; }
+.brand .lead { margin: 0; font-size: 0.875rem; color: var(--line); }
+.mark { flex: none; width: 2.25rem; height: 2.25rem; border-radius: 9px; background: var(--accent); color: var(--on-accent);
+  display: flex; align-items: center; justify-content: center; }
+nav ul { display: flex; flex-wrap: wrap; gap: 0.25rem; list-style: none; padding: 0; margin: 0.75rem 0 0; }
+nav a { display: block; padding: 0.7rem 0.9rem; text-decoration: none; color: var(--line); font-weight: 500;
+  border-bottom: 3px solid transparent; min-height: 44px; }
+nav a:hover { color: var(--ink); }
+nav a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 700; }
+/* The status bar: one pill for each fact, so it reads at a glance. */
+.status { margin-top: 1.25rem; display: grid; gap: 0.75rem; }
+.status > * { margin: 0; }
+.pills { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0; }
+.pill { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.4rem; padding: 0.4rem 0.85rem;
+  border-radius: 999px; background: var(--paper); border: 1px solid var(--hair); font-size: 0.875rem; }
+.pill dt { color: var(--line); }
+.pill dt svg { vertical-align: -3px; margin-right: 0.4rem; }
+.pill dt::after { content: ":"; }
+.pill dd { margin: 0; font-weight: 600; }
+.pill.laptop { background: var(--laptop-bg); border-color: var(--laptop-bg); }
+.pill.laptop dt, .pill.laptop dd { color: var(--laptop); }
+.pill.count { background: var(--ink); border-color: var(--ink); }
+.pill.count dt, .pill.count dd { color: var(--paper); }
+.tiles { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 0.25rem 0; }
+.tiles dt { font-size: 0.8rem; color: var(--line); }
+.tiles dd { margin: 0; font-weight: 600; }
 .tile { border: 1px solid var(--line); border-radius: 8px; padding: 0.6rem 0.9rem; min-width: 9rem; }
 .tile dd { font-size: 1.6rem; }
 .tile.good { border: 2px solid var(--good); }
@@ -43,7 +78,7 @@ label { display: block; }
 .inline { display: inline-flex; align-items: center; gap: 0.35rem; }
 .fields label { display: grid; gap: 0.25rem; }
 button, select, input, textarea { font: inherit; color: inherit; }
-button { min-height: 44px; padding: 0.4rem 0.9rem; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); cursor: pointer; }
+button { min-height: 44px; padding: 0.4rem 0.9rem; border: 1px solid var(--edge); border-radius: 8px; background: var(--paper); cursor: pointer; }
 button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 600; }
 button.danger { color: var(--bad); border-color: var(--bad); }
 /* Switched off: plainly greyed and dashed, so it never reads as clickable. aria-disabled keeps focus on it. */
@@ -52,7 +87,7 @@ button:disabled, button[aria-disabled="true"] {
 }
 /* Headings and panels that take focus only so a screen reader starts there. */
 main:focus, h2[tabindex="-1"]:focus, h4[tabindex="-1"]:focus { outline: none; }
-input, select, textarea { border: 1px solid var(--line); border-radius: 4px; padding: 0.35rem 0.5rem; background: var(--paper); min-height: 40px; }
+input, select, textarea { border: 1px solid var(--edge); border-radius: 6px; padding: 0.35rem 0.5rem; background: var(--paper); min-height: 40px; }
 textarea { width: 100%; }
 input.note { min-width: 18rem; width: 100%; }
 progress { display: block; width: 100%; max-width: 24rem; }
