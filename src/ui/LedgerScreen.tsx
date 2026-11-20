@@ -1,12 +1,13 @@
-import { ranText, stoppedNoModel, summarise, timedOutInCloud, type LedgerEntry } from '../core/ledger';
-import { TASKS, type Mode } from '../core/policy';
+import { ranText, stoppedNoModel, summarise, timedOutInCloud, type LedgerEntry, type LedgerMode } from '../core/ledger';
+import { TASKS } from '../core/policy';
 
-const MODE_TEXT: Record<Mode | 'disabled', string> = {
+const MODE_TEXT: Record<LedgerMode, string> = {
   only_on_device: 'Device only',
   prefer_on_device: 'Device first',
   prefer_in_cloud: 'Cloud first',
   only_in_cloud: 'Cloud only',
   disabled: 'Switched off',
+  library: 'Shared plan library',
 };
 
 const OUTCOME_TEXT = { ok: 'Done', blocked: 'Blocked by the name check', disabled: 'Switched off', error: 'Failed' } as const;
@@ -59,7 +60,7 @@ export function LedgerScreen({ ledger, onClear }: { ledger: LedgerEntry[]; onCle
               {newestFirst.map((e) => (
                 <tr key={e.id}>
                   <td>{new Date(e.at).toLocaleTimeString()}</td>
-                  <th scope="row">{TASKS[e.task].label}</th>
+                  <th scope="row">{e.task === 'share' ? 'Share a plan with other teachers' : TASKS[e.task].label}</th>
                   <td>{MODE_TEXT[e.mode]}</td>
                   <td>{ranText(e)}</td>
                   <td>{resultText(e)}</td>

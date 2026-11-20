@@ -9,12 +9,17 @@ import type { InferenceSource } from './types';
 
 export type Outcome = 'ok' | 'blocked' | 'disabled' | 'error';
 
+/** A model task, or `share`: a plan sent to the shared plan library. No model runs for a share. */
+export type LedgerTask = TaskId | 'share';
+/** The mode for a model task. `library` for a share. */
+export type LedgerMode = Mode | 'disabled' | 'library';
+
 export interface LedgerEntry {
   id: string;
   at: number;
-  task: TaskId;
+  task: LedgerTask;
   /** The mode the request was made in, after the rules were applied. */
-  mode: Mode | 'disabled';
+  mode: LedgerMode;
   /** Where it really ran. Absent when nothing ran. */
   source?: InferenceSource;
   outcome: Outcome;
@@ -58,6 +63,10 @@ export function stoppedNoModel(e: LedgerEntry): boolean {
 
 /** The "Ran" wording used on the ledger and self-test screens. */
 export function ranText(e: LedgerEntry | null | undefined): string {
+  if (e?.task === 'share') {
+    if (e.outcome === 'ok') return 'Saved to the shared plan library';
+    return e.sentChars > 0 ? 'Sent to the shared plan library, not saved' : 'Not sent';
+  }
   if (!e?.source) return 'Did not run';
   if (e.source === 'in_cloud') {
     if (e.outcome !== 'error') return 'In the cloud';
@@ -107,7 +116,7 @@ export function summarise(entries: LedgerEntry[]): LedgerSummary {
     if (refusedByCloud(e)) s.refusedInCloud += 1;
     if (leftLaptop(e)) {
       s.charsSent += e.sentChars;
-      if (TASKS[e.task].touchesLearnerData) s.learnerTasksInCloud += 1;
+      if (e.task !== 'share' && TASKS[e.task].touchesLearnerData) s.learnerTasksInCloud += 1;
     }
   }
   return s;
