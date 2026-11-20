@@ -98,26 +98,13 @@ th, td { border-bottom: 1px solid var(--soft); padding: 0.3rem 0.4rem; text-alig
 thead th { font-weight: 600; font-size: 0.85rem; white-space: nowrap; }
 pre { white-space: pre-wrap; background: var(--soft); padding: 0.5rem; border-radius: 6px; max-width: 40rem; }
 .cards { list-style: none; padding: 0; display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr)); }
-.card { border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem; }
+.card { background: var(--paper); border: 1px solid var(--hair); border-radius: var(--radius); padding: 0.85rem 1rem; }
 .card p { margin: 0.25rem 0; }
-.badge { border: 1px solid var(--good); color: var(--good); border-radius: 999px; padding: 0.1rem 0.6rem; font-weight: 600; }
 .fatal { padding: 2rem; }
 h4 { font-size: 1rem; margin: 0 0 0.35rem; }
-.groups li { margin: 0.35rem 0; }
-.panel { border: 1px solid var(--line); border-radius: 8px; padding: 1rem; margin-top: 1rem; display: grid; gap: 1rem; }
-.outbound { border: 2px solid var(--accent); border-radius: 8px; padding: 1rem; font-size: 1.05rem; }
-.outbound .fixed { background: var(--soft); padding: 0.6rem 0.75rem; border-radius: 6px; margin: 0.25rem 0 0.75rem; }
-.outbound textarea { font-size: 1.05rem; margin-top: 0.25rem; }
-.outbound .pass { color: var(--good); font-weight: 600; margin: 0.5rem 0; }
-.outbound .fail { color: var(--bad); font-weight: 600; margin: 0.5rem 0; }
-.outbound .fail ul { margin: 0.25rem 0; padding-left: 1.25rem; }
 h5 { font-size: 0.95rem; margin: 0.75rem 0 0.25rem; }
-.plan ol { margin: 0.25rem 0; padding-left: 1.5rem; }
-.plan ol li { margin: 0.35rem 0; }
-.route-a { border: 2px solid var(--bad); border-radius: 8px; padding: 0.75rem 1rem; }
-.route-a p { margin: 0.35rem 0; }
-.warn-badge { border-color: var(--warn-ink); color: var(--warn-ink); background: var(--warn-bg); }
 .card textarea { width: 100%; box-sizing: border-box; }
+.cards.shared { grid-template-columns: 1fr; max-width: 52rem; }
 .quick { grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); }
 .quick pre { white-space: pre-wrap; }
 .task-map { margin: 0.25rem 0 0.5rem; }
@@ -127,3 +114,72 @@ h5 { font-size: 0.95rem; margin: 0.75rem 0 0.25rem; }
 .about { max-width: 46rem; }
 .about h3 { margin-top: 1.75rem; }
 .steps li { margin-bottom: 0.5rem; }
+/* Badges: teal for the laptop, orange for the cloud. */
+.badge { display: inline-flex; align-items: center; gap: 0.35rem; border: 1px solid var(--good); color: var(--good);
+  border-radius: 999px; padding: 0.15rem 0.7rem; font-size: 0.875rem; font-weight: 600; }
+.badge.laptop { background: var(--laptop-bg); border-color: var(--laptop-bg); color: var(--laptop); }
+.badge.cloud { background: var(--cloud-bg); border-color: var(--cloud-bg); color: var(--cloud); }
+.warn-badge { border-color: var(--cloud); color: var(--cloud); background: transparent; }
+.where { display: flex; align-items: center; gap: 0.4rem; margin: 0 0 0.5rem; font-size: 0.8rem; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase; }
+.where.laptop { color: var(--laptop); }
+.where.cloud { color: var(--cloud); }
+
+/* Support: the groups, one card each. */
+.groups { list-style: none; padding: 0; margin: 0.75rem 0 0; display: grid; gap: 0.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(19rem, 100%), 1fr)); }
+.groups li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 0.75rem;
+  background: var(--paper); border: 1px solid var(--hair); border-radius: var(--radius); padding: 0.6rem 0.6rem 0.6rem 1rem; }
+.groups li.open { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+
+/* The open group: three columns, left to right the way the text moves. */
+.panel { margin-top: 1.75rem; display: grid; gap: 1.25rem; }
+.panel > h3 { font-size: 1.75rem; letter-spacing: -0.02em; line-height: 1.2; }
+.flow { display: grid; gap: 1.25rem; align-items: start; grid-template-columns: minmax(0, 1fr) minmax(0, 1.65fr) minmax(0, 1.15fr); }
+.col { display: grid; gap: 0; min-width: 0; }
+.step { background: var(--paper); border: 1px solid var(--hair); border-radius: 14px; padding: 1.1rem 1.25rem; }
+.step > :last-child { margin-bottom: 0; }
+.step h4 { font-size: 1.1rem; }
+.step.waiting { border-style: dashed; border-color: var(--edge); background: transparent; }
+
+/* The gate: the outbound preview and the button that sends it, one strong card. The biggest type on the page. */
+.gate { background: var(--paper); border: 3px solid var(--ink); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow); }
+.gate .step { border: 0; border-top: 1px solid var(--hair); border-radius: 0; }
+.outbound { font-size: 1.0625rem; line-height: 1.6; }
+.outbound h4 { margin: 0; background: var(--ink); color: var(--paper); padding: 0.9rem 1.25rem; font-size: 1.3rem; line-height: 1.3; }
+.outbound > :not(h4) { margin-left: 1.25rem; margin-right: 1.25rem; }
+.outbound .fixed { font-family: var(--mono); font-size: 1rem; background: var(--page); border: 1px solid var(--hair);
+  border-radius: var(--radius); padding: 0.9rem 1rem; margin-top: 1.1rem; margin-bottom: 1rem; }
+.outbound label { font-weight: 700; }
+.outbound label .small { font-weight: 400; color: var(--line); }
+.outbound textarea { display: block; width: calc(100% - 2.5rem); font-family: var(--mono); font-size: 1.0625rem; font-weight: 500;
+  margin-top: 0.35rem; padding: 0.7rem 0.85rem; border: 2px solid var(--accent); border-radius: var(--radius); }
+.outbound .pass, .outbound .fail { border-radius: var(--radius); padding: 0.75rem 1rem; margin-top: 0.9rem; margin-bottom: 0.75rem; font-weight: 700; }
+.outbound .pass { background: var(--laptop-bg); color: var(--good); }
+.outbound .fail { border: 2px solid var(--bad); color: var(--bad); }
+.outbound .fail p { margin: 0; }
+.outbound .fail ul { margin: 0.35rem 0 0; padding-left: 1.25rem; font-weight: 400; }
+/* A mark you can see from across the room. The words carry the meaning; the mark is not read out. */
+.outbound .pass::before { content: "✓  " / ""; }
+.outbound .fail > p:first-child::before { content: "✗  " / ""; }
+.outbound details { margin-bottom: 1rem; }
+.gate button.primary { display: inline-flex; align-items: center; gap: 0.6rem; min-height: 52px; padding: 0 1.5rem; font-size: 1.0625rem; border-radius: 12px; }
+.route-a { border-top: 3px solid var(--bad); padding: 1rem 1.25rem; }
+.route-a p { margin: 0.35rem 0; }
+.gate > [data-testid="support-problem"] { margin: 0; padding: 0.75rem 1.25rem; border-top: 1px solid var(--hair); }
+
+/* The plan, from the cloud. */
+.plan ol { margin: 0.25rem 0; padding-left: 1.4rem; }
+.plan ol li { margin: 0.4rem 0; }
+.plan .row { margin: 0.25rem 0 0.5rem; }
+
+@media (max-width: 70rem) {
+  .flow { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 40rem) {
+  .wrap { padding: 0 1rem; }
+  .step { padding: 0.9rem 1rem; }
+  .outbound h4 { padding: 0.75rem 1rem; font-size: 1.15rem; }
+  .outbound > :not(h4) { margin-left: 1rem; margin-right: 1rem; }
+  .outbound textarea { width: calc(100% - 2rem); min-height: 6rem; }
+}

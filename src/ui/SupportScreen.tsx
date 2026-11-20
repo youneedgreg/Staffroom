@@ -31,6 +31,7 @@ import type { ClassData, CurriculumPack, Plan } from '../core/types';
 import type { DeviceStatus } from '../engine/engine';
 import { GROUNDED_SHARE_TEXT, sharePlan, type PlanLibrary, type SharedPlan } from '../core/library';
 import { focusSoon, offWhen } from './a11y';
+import { CloudIcon, LaptopIcon } from './icons';
 
 interface Props {
   classData: ClassData | null;
@@ -137,8 +138,8 @@ export function SupportScreen({ classData, pack, ctx, settings, online, device, 
       ) : (
         <ul data-testid="groups" className="groups">
           {groups.map((g) => (
-            <li key={g.subStrand.id}>
-              <strong>{g.subStrand.name}</strong>: {g.learners.length} learners ({g.band.toLowerCase()} of the class){' '}
+            <li key={g.subStrand.id} className={openId === g.subStrand.id ? 'open' : undefined}>
+              <span><strong>{g.subStrand.name}</strong>: {g.learners.length} learners ({g.band.toLowerCase()} of the class)</span>{' '}
               <button
                 type="button"
                 aria-expanded={openId === g.subStrand.id}
@@ -303,170 +304,188 @@ function GroupPanel({
     <section className="panel" aria-labelledby="panel-title" data-testid="group-panel">
       <h3 id="panel-title">{group.subStrand.name}: {group.band.toLowerCase()} of the class</h3>
 
-      <div className="step">
-        <h4>1. What do they find hard?</h4>
-        <p className="small">Staffroom reads your notes on these learners and sums them up in one phrase. This runs on this laptop only.</p>
-        <p className="row">
-          <button type="button" {...offWhen(busy, () => void sumUp())}>
-            {state.busy === 'summing' ? 'Summing up…' : 'Sum up the difficulty'}
-          </button>
-        </p>
-        {state.problem && state.problemAt === 'sum' && (
-          <p role="alert" className="bad" data-testid="sum-problem">{state.problem}</p>
-        )}
-      </div>
+      {/* Left to right, the way the text moves: your notes on this laptop, the check you make, the cloud. */}
+      <div className="flow">
+        <div className="col">
+          <p className="where laptop"><LaptopIcon />On this laptop</p>
+          <div className="step">
+            <h4>1. What do they find hard?</h4>
+            <p className="small">Staffroom reads your notes on these learners and sums them up in one phrase. This runs on this laptop only.</p>
+            <p className="row">
+              <button type="button" {...offWhen(busy, () => void sumUp())}>
+                {state.busy === 'summing' ? 'Summing up…' : 'Sum up the difficulty'}
+              </button>
+            </p>
+            {state.problem && state.problemAt === 'sum' && (
+              <p role="alert" className="bad" data-testid="sum-problem">{state.problem}</p>
+            )}
+          </div>
+        </div>
 
-      {/* 3. The outbound preview: everything that will leave, in full. */}
-      <div className="outbound" data-testid="outbound">
-        <h4>2. This is all the text that will leave this laptop</h4>
-        <p className="fixed" data-testid="outbound-fixed">{message.fixed}</p>
-        <label htmlFor="free">The difficulty they share <span className="small">(the only part you can change)</span></label>
-        <textarea
-          id="free"
-          data-testid="outbound-free"
-          rows={2}
-          value={state.free}
-          onChange={(e) => update({ free: e.target.value })}
-          placeholder="For example: adding the tops and the bottoms when adding fractions"
-          aria-describedby="verdict"
-        />
-        {/* 4. The verdict, recomputed on every keystroke. */}
-        <div id="verdict" data-testid="verdict">
-          {verdict.ok ? (
-            <p className="pass">Checked against your class list: 0 learner names, 0 numbers, 0 school words.</p>
-          ) : (
-            <div role="alert" className="fail">
+        <div className="col gate">
+          {/* 3. The outbound preview: everything that will leave, in full. */}
+          <div className="outbound" data-testid="outbound">
+            <h4>2. This is all the text that will leave this laptop</h4>
+            <p className="fixed" data-testid="outbound-fixed">{message.fixed}</p>
+            <label htmlFor="free">The difficulty they share <span className="small">(the only part you can change)</span></label>
+            <textarea
+              id="free"
+              data-testid="outbound-free"
+              rows={2}
+              value={state.free}
+              onChange={(e) => update({ free: e.target.value })}
+              placeholder="For example: adding the tops and the bottoms when adding fractions"
+              aria-describedby="verdict"
+            />
+            {/* 4. The verdict, recomputed on every keystroke. */}
+            <div id="verdict" data-testid="verdict">
+              {verdict.ok ? (
+                <p className="pass">Checked against your class list: 0 learner names, 0 numbers, 0 school words.</p>
+              ) : (
+                <div role="alert" className="fail">
+                  <p>
+                    Checked against your class list: {nameHits} learner {nameHits === 1 ? 'name' : 'names'}, {digitHits}{' '}
+                    {digitHits === 1 ? 'number' : 'numbers'}, {schoolHits} school {schoolHits === 1 ? 'word' : 'words'}.
+                  </p>
+                  <ul>
+                    {verdict.hits.map((h, i) => <li key={`${h.kind}-${h.match}-${i}`}>{describeHit(h)}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+            <details className="small">
+              <summary>Also sent: the instructions Staffroom gives the cloud model</summary>
+              <p>{PLAN_SYSTEM}</p>
+            </details>
+          </div>
+
+          <div className="step">
+            <h4>3. Ask the cloud for a plan</h4>
+            <p className="row">
+              <button
+                type="button"
+                className="primary"
+                data-testid="ask"
+                {...offWhen(busy || blockedBecause !== null, () => void ask(true))}
+                aria-describedby={blockedBecause ? 'ask-reason' : undefined}
+              >
+                <CloudIcon size={20} />
+                {state.busy === 'asking' ? 'Asking…' : 'Ask the cloud'}
+              </button>
+            </p>
+            {blockedBecause && <p id="ask-reason" data-testid="ask-reason">{blockedBecause}</p>}
+          </div>
+
+          {state.offerPlain ? (
+            // Route A. The refused request did leave the laptop; say so, then ask before a second send.
+            <div role="alert" className="route-a" data-testid="route-a">
+              <p className="bad">{state.problem}</p>
               <p>
-                Checked against your class list: {nameHits} learner {nameHits === 1 ? 'name' : 'names'}, {digitHits}{' '}
-                {digitHits === 1 ? 'number' : 'numbers'}, {schoolHits} school {schoolHits === 1 ? 'word' : 'words'}.
+                <strong>Web sources aren't available right now.</strong> Ask the cloud for a plan without web sources?
+                The same text shown above is sent again, and the answer is marked "No web sources".
               </p>
-              <ul>
-                {verdict.hits.map((h, i) => <li key={`${h.kind}-${h.match}-${i}`}>{describeHit(h)}</li>)}
-              </ul>
+              <p className="row">
+                <button
+                  type="button"
+                  data-testid="ask-plain"
+                  {...offWhen(busy || blockedBecause !== null, () => void ask(false))}
+                  aria-describedby={blockedBecause ? 'ask-reason' : undefined}
+                >
+                  Ask without web sources
+                </button>
+                <button type="button" {...offWhen(busy, () => update({ offerPlain: false, problem: undefined }))}>
+                  Not now
+                </button>
+              </p>
+            </div>
+          ) : (
+            state.problem && state.problemAt === 'ask' && (
+              <p role="alert" className="bad" data-testid="support-problem">{state.problem}</p>
+            )
+          )}
+        </div>
+
+        <div className="col">
+          <p className="where cloud"><CloudIcon />In the cloud</p>
+          {lastPlan && parsed ? (
+            <PlanPanel
+              plan={lastPlan}
+              parsed={parsed}
+              share={
+                library
+                  ? async () => {
+                      const result = await sharePlan(ctx, library, lastPlan, online);
+                      if (result.status === 'ok') {
+                        onShared(lastPlan.id);
+                        setLibraryVersion((v) => v + 1);
+                      }
+                      return result.status === 'ok' ? null : result.message;
+                    }
+                  : null
+              }
+            />
+          ) : (
+            <div className="step waiting">
+              <h4>4. The plan</h4>
+              <p className="small">The plan appears here when you ask the cloud.</p>
             </div>
           )}
         </div>
-        <details className="small">
-          <summary>Also sent: the instructions Staffroom gives the cloud model</summary>
-          <p>{PLAN_SYSTEM}</p>
-        </details>
       </div>
-
-      <div className="step">
-        <h4>3. Ask the cloud for a plan</h4>
-        <p className="row">
-          <button
-            type="button"
-            className="primary"
-            data-testid="ask"
-            {...offWhen(busy || blockedBecause !== null, () => void ask(true))}
-            aria-describedby={blockedBecause ? 'ask-reason' : undefined}
-          >
-            {state.busy === 'asking' ? 'Asking…' : 'Ask the cloud'}
-          </button>
-        </p>
-        {blockedBecause && <p id="ask-reason" data-testid="ask-reason">{blockedBecause}</p>}
-      </div>
-
-      {state.offerPlain ? (
-        // Route A. The refused request did leave the laptop; say so, then ask before a second send.
-        <div role="alert" className="route-a" data-testid="route-a">
-          <p className="bad">{state.problem}</p>
-          <p>
-            <strong>Web sources aren't available right now.</strong> Ask the cloud for a plan without web sources?
-            The same text shown above is sent again, and the answer is marked "No web sources".
-          </p>
-          <p className="row">
-            <button
-              type="button"
-              data-testid="ask-plain"
-              {...offWhen(busy || blockedBecause !== null, () => void ask(false))}
-              aria-describedby={blockedBecause ? 'ask-reason' : undefined}
-            >
-              Ask without web sources
-            </button>
-            <button type="button" {...offWhen(busy, () => update({ offerPlain: false, problem: undefined }))}>
-              Not now
-            </button>
-          </p>
-        </div>
-      ) : (
-        state.problem && state.problemAt === 'ask' && (
-          <p role="alert" className="bad" data-testid="support-problem">{state.problem}</p>
-        )
-      )}
 
       {lastPlan && parsed && (
-        <>
-          <PlanPanel
-            plan={lastPlan}
-            parsed={parsed}
-            share={
-              library
-                ? async () => {
-                    const result = await sharePlan(ctx, library, lastPlan, online);
-                    if (result.status === 'ok') {
-                      onShared(lastPlan.id);
-                      setLibraryVersion((v) => v + 1);
-                    }
-                    return result.status === 'ok' ? null : result.message;
-                  }
-                : null
-            }
-          />
-          <div className="step" data-testid="parent-notes">
-            <h4>5. Notes to parents</h4>
-            <p className="small">
-              Each note joins the plan's "At home" activity to one learner's own level and your note on them.
-              This runs on this laptop only. Names are added by Staffroom, never given to the model.
+        <div className="step" data-testid="parent-notes">
+          <h4>5. Notes to parents</h4>
+          <p className="small">
+            Each note joins the plan's "At home" activity to one learner's own level and your note on them.
+            This runs on this laptop only. Names are added by Staffroom, never given to the model.
+          </p>
+          <p className="row">
+            <button type="button" className="primary" data-testid="write-notes" {...offWhen(busy, () => void writeNotes())}>
+              {state.busy === 'writing' ? 'Writing…' : `Write the parent notes (${group.learners.length})`}
+            </button>
+            {state.busy === 'writing' && (
+              <button type="button" onClick={() => state.stop?.()}>Stop</button>
+            )}
+            {state.progress && (
+              <span role="status" data-testid="notes-progress">
+                {state.busy === 'writing'
+                  ? `Writing note ${Math.min(state.progress.done + 1, state.progress.total)} of ${state.progress.total}…`
+                  : `${state.progress.ok} of ${state.progress.total} notes written${state.progress.failed ? `, ${state.progress.failed} failed` : ''}.`}
+              </span>
+            )}
+          </p>
+          {state.problem && state.problemAt === 'notes' && (
+            <p role="alert" className="bad" data-testid="notes-problem">{state.problem}</p>
+          )}
+          {Object.keys(state.notes).length > 0 && (
+            <p className="small" data-testid="notes-check">
+              Check each note before you send it. The kind words are copied from your own note about the child, and
+              the on-device model can mistake a slip for a strength. The rest is your difficulty phrase and the home
+              activity, word for word.
             </p>
-            <p className="row">
-              <button type="button" className="primary" data-testid="write-notes" {...offWhen(busy, () => void writeNotes())}>
-                {state.busy === 'writing' ? 'Writing…' : `Write the parent notes (${group.learners.length})`}
-              </button>
-              {state.busy === 'writing' && (
-                <button type="button" onClick={() => state.stop?.()}>Stop</button>
-              )}
-              {state.progress && (
-                <span role="status" data-testid="notes-progress">
-                  {state.busy === 'writing'
-                    ? `Writing note ${Math.min(state.progress.done + 1, state.progress.total)} of ${state.progress.total}…`
-                    : `${state.progress.ok} of ${state.progress.total} notes written${state.progress.failed ? `, ${state.progress.failed} failed` : ''}.`}
-                </span>
-              )}
-            </p>
-            {state.problem && state.problemAt === 'notes' && (
-              <p role="alert" className="bad" data-testid="notes-problem">{state.problem}</p>
-            )}
-            {Object.keys(state.notes).length > 0 && (
-              <p className="small" data-testid="notes-check">
-                Check each note before you send it. The kind words are copied from your own note about the child, and
-                the on-device model can mistake a slip for a strength. The rest is your difficulty phrase and the home
-                activity, word for word.
-              </p>
-            )}
-            {Object.keys(state.notes).length > 0 && (
-              <ul className="cards" data-testid="notes">
-                {group.learners
-                  .filter((l) => state.notes[l.id] !== undefined)
-                  .map((l) => (
-                    <li key={l.id} className="card">
-                      <p className="row">
-                        <label htmlFor={`note-${l.id}`}><strong>{l.name}</strong></label>
-                        <span className="badge">Written on this laptop</span>
-                      </p>
-                      <textarea
-                        id={`note-${l.id}`}
-                        rows={6}
-                        value={state.notes[l.id]}
-                        onChange={(e) => update((current) => ({ notes: { ...current.notes, [l.id]: e.target.value } }))}
-                      />
-                    </li>
-                  ))}
-              </ul>
-            )}
-          </div>
-        </>
+          )}
+          {Object.keys(state.notes).length > 0 && (
+            <ul className="cards" data-testid="notes">
+              {group.learners
+                .filter((l) => state.notes[l.id] !== undefined)
+                .map((l) => (
+                  <li key={l.id} className="card">
+                    <p className="row">
+                      <label htmlFor={`note-${l.id}`}><strong>{l.name}</strong></label>
+                      <span className="badge laptop"><LaptopIcon />Written on this laptop</span>
+                    </p>
+                    <textarea
+                      id={`note-${l.id}`}
+                      rows={6}
+                      value={state.notes[l.id]}
+                      onChange={(e) => update((current) => ({ notes: { ...current.notes, [l.id]: e.target.value } }))}
+                    />
+                  </li>
+                ))}
+            </ul>
+          )}
+        </div>
       )}
 
       {library && <SharedPlans library={library} pack={pack} group={group} version={libraryVersion} online={online} />}
@@ -569,7 +588,7 @@ function PlanPanel({
     <div className="step plan" data-testid="plan">
       <h4>4. The plan</h4>
       <p className="row">
-        <span className="badge">Answered in the cloud from a question with no learner in it</span>
+        <span className="badge cloud"><CloudIcon />Answered in the cloud from a question with no learner in it</span>
         {plain && <span className="badge warn-badge" data-testid="no-sources-badge">No web sources</span>}
       </p>
       {parsed.activities.length > 0 ? (
@@ -693,7 +712,7 @@ function SharedPlans({
             <p className="small" data-testid="shared-plans-empty">No one has shared a plan for this topic yet.</p>
           )}
           {state.status === 'ok' && state.plans.length > 0 && (
-            <ul className="cards" data-testid="shared-plans-list">
+            <ul className="cards shared" data-testid="shared-plans-list">
               {state.plans.map((p) => {
                 const parsedShared = parsePlan(p.answer);
                 return (
