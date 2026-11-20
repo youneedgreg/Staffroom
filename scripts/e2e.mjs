@@ -186,6 +186,9 @@ try {
     await page.goto(`${BASE}/?engine=demo&device=unavailable`);
     await page.click('text=Load the invented sample class');
     check('status bar says the model is not available', (await text(page, 'device-status')) === 'not available in this browser');
+    check('status bar explains what stops and what still works',
+      (await text(page, 'no-model-note')).includes('nothing about a child is sent to the cloud instead') &&
+      (await text(page, 'no-model-note')).includes('still work through the cloud'));
     await page.click('a[href="#/reports"]');
     await page.click('text=Draft all remarks');
     await page.waitForSelector('[data-testid="batch-problem"]');
