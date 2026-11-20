@@ -160,3 +160,90 @@ The cloud model in the task-map caption was `gemini-3.5-flash-lite` throughout.
 **Found:**
 - One run each, so not a measurement, but the gap is large: `gemini-3.5-flash` took 151.6 s where `gemini-3.5-flash-lite` took 1.8–2.6 s. Staffroom stays on `gemini-3.5-flash-lite`.
 - The app had no time limit of its own, and the SDK waits up to 180 s. Had the SDK given up, the ledger would have logged the request as "nothing sent", which is false. Fixed on `fix/cloud-timeout`: Staffroom stops waiting after 30 seconds, says so, and logs the request as sent with its exact text. Checked with the simulated engine (`&cloud=slow`) and unit tests. A real timeout on the real engine wasn't reproduced.
+
+## Fri 20 Nov 2026 — plan library: Firestore rules on the live project, and the Day-5 gate
+
+**Setup:** rules from PR #20 deployed to the live project (`staffroom-88e70`). Each check was a real request to Firestore as an anonymous user, or signed out where the check says so. The test document was deleted afterwards (reading it again returns 404).
+
+| Check | Expected | Got |
+|---|---|---|
+| Create a correct plan (exactly the 6 allowed fields) | allowed | allowed |
+| Read it while signed in | allowed | allowed |
+| Read it while signed out | refused | refused (403) |
+| Create while signed out | refused | refused (403) |
+| Create with someone else's `uid` | refused | refused (403) |
+| Create with an extra `sources` field | refused | refused (403) |
+| Create with the answer missing | refused | refused (403) |
+| Create with an empty question | refused | refused (403) |
+| Create with a 9,000-character answer | refused | refused (403) |
+| Create with `at` sent as text | refused | refused (403) |
+| Update the plan | refused | refused (403) |
+| Delete the plan | refused | refused (403) |
+| Write to another collection | refused | refused (403) |
+
+**Pass:** 13 of 13.
+
+**Day-5 gate, passed:** a plan shared from my Chrome showed up in the Claude app's built-in browser, which was signed in as a different anonymous user. That plan (the sample class's Fractions plan, asked without web sources) stays in the live library as the demo example.
+
+## Fri 20 Nov 2026 — the first deploy to `https://staffroom-88e70.web.app` (Day 6)
+
+**Setup:** Firebase Hosting, built from `main` at `19ed1a0`. App Check uses the real reCAPTCHA Enterprise key on the live address; the debug token is for localhost only. Before deploying, the production build was checked for the debug token. It was there (fixed in PR #21, and the build now fails if it's ever found in `dist/`). After deploying, every live file was fetched: the token is in none of them.
+
+**The Claude app's built-in browser (no on-device model), run by Claude:**
+- A remark was refused because there is no on-device model, and nothing was sent.
+- The starter activity ran in the cloud, so App Check with the real key works.
+- The shared plan was listed, and the service worker was active.
+- Learner tasks sent to the cloud: **0**. No console errors.
+
+**My Chrome 157 (with the Claude extension, wifi on), run by Claude:**
+- The model was `available` on the live address, with no download or flag prompt.
+- Remarks: 30 of 30 written on the laptop. The batch took about 90 s, timed by polling the page.
+- Fractions was the first group (10 learners). The difficulty phrase came out as "treating a decimal point like a remainder", which is about decimals (fixed later the same day, below).
+- The preview held 0 names. The plan with web sources was refused (HTTP 429, the free-tier grounding limit). Route A gave a plan of 3 activities without web sources.
+- Parent notes: 10 of 10, in about 20 s.
+- Typing "Faith" into the phrase switched "Ask the cloud" off with the reason.
+- Ledger: 43 rows. 41 on the laptop, 1 in the cloud, 1 refused, 1,656 characters sent, **0 learner tasks in the cloud**.
+- The only console error came from a Chrome extension.
+
+## Fri 20 Nov 2026 — the Day-6 checks I ran myself on the live site
+
+**1. The judge's loop in Chrome incognito, wifi off for the on-device steps: passed.**
+- Model ready. Remarks: 30 of 30 "Written on this laptop".
+- Support, offline: Fractions first (10 learners). The phrase came out as "adding the top and bottom when adding fractions" on the first run, and "treating a decimal point like a remainder when adding fractions" on the second (the drift fixed below).
+- Wifi back on: the preview held 0 names. The plan with web sources was refused, then Route A gave a plan of 3 activities marked "No web sources".
+- Parent notes: 10 of 10.
+- Typing "like Faith" found 1 learner name, greyed out "Ask the cloud" and said "Nothing is sent while the check fails".
+- Ledger: learner tasks sent to the cloud **0**, on the laptop 41, in the cloud 1, not answered 1, 1,700 characters sent, failed 1 (the refusal).
+- **Limit:** the Claude extension's icon still showed in the incognito toolbar, so this run doesn't prove "no extensions". A final run with the extension switched off is still to do.
+
+**2. Reloading offline: passed.** Normal Chrome, wifi off, page reloaded. The app opened and said "Connection offline". The class and its 30 remarks were there. No new remark was drafted offline in this run; the incognito run covers that.
+
+**3. Safari (no on-device model): passed.**
+- The status bar said the model is not available in this browser.
+- In the self-test, the 3 learner rows said "Did not run" ("Stopped, as designed").
+- The plan with web sources was refused (866 ms). The starter activity ran in the cloud (1,309 ms), and so did plain words (1,084 ms).
+- Learner tasks sent to the cloud: **0**.
+
+**4. A screen recording of the Network tab while 30 remarks were written.** Recorded, but not reviewed yet, so no result here.
+
+## Fri 20 Nov 2026 — three problems the live runs found, fixed and redeployed
+
+**a. Shared plans opened offline (PR #22).** With wifi off, the Fractions group said "No one has shared a plan for this topic yet", though one was shared, and it still said so after wifi came back. Firestore's offline cache answered with an empty list instead of failing. The list now reads from the server only. Offline it says "Shared plans need the internet. They load when the connection comes back." and it loads on its own once the connection returns. Checked with the browser tests and against the real project online. Not yet re-run offline on the live site.
+
+**b. A returning browser kept the old build (PR #23).** After redeploying (a), a browser that had already opened the site kept running the old script. Two causes: Hosting sent `index.html` with a one-hour cache, and the new service worker filled its cache through the browser's HTTP cache, so it stored the old page. `/` and `/index.html` are now sent as `no-cache`, and the service worker fetches its files fresh from the server. Checked live after redeploying `6893dc8`:
+- both headers are `no-cache`;
+- the built-in browser, stuck on the old build, switched to the new one on the 2nd reload with nothing cleared (the 1st reload installs the new service worker, as normal);
+- no console errors.
+
+My Chrome was still on the build from before (a), with the old service worker, and took 3 reloads. Browsers that already have this fix need 2.
+
+**c. The difficulty phrase drifted to another topic (PR #24).** Each note covers the learner, not one topic. Three notes in the Fractions group also hold a decimal mistake, and the on-device model picked it in 2 of 3 live runs. The drift then carried into the plan and every parent note. Code now keeps only the sentences of each note that name the group's topic, using a short word list for each topic in the curriculum pack. Results on the real on-device model, in my Chrome:
+
+| Where | Group | Runs | On topic | Phrases |
+|---|---|---|---|---|
+| Dev server | Fractions | 5 | 5 | all about adding the tops and bottoms or common denominators, for example "adding the tops and bottoms when adding fractions" |
+| Dev server | Decimals | 3 | 3 | "treating a/the decimal point like/as a remainder" |
+| Dev server | Multiplication | 1 | — | "nothing to sum up": its 3 notes are all about division or sharing, so the teacher types the difficulty |
+| Live, after redeploying `ad5823f` | Fractions | 3 | 3 | "adding the tops and denominators, without employing a common denominator"; "adds the tops and bottoms when adding fractions"; "adding the tops and bottoms when adding fractions" |
+
+Each phrase took about 1.3 s after the first run of a session (the first took 3.3–3.8 s). Learner tasks sent to the cloud stayed at 0, and there were no console errors. Two phrases start with "add"/"adds" rather than "adding"; the teacher can edit the phrase before it's sent.
