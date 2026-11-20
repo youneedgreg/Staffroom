@@ -3,6 +3,7 @@ import { runBatch, type BatchProgress, type ItemResult } from '../core/batch';
 import { draftRemark, needsRemark } from '../core/flows';
 import type { RunContext } from '../core/runner';
 import type { ClassData, CurriculumPack, Learner, Remark } from '../core/types';
+import { offWhen } from './a11y';
 
 interface Props {
   classData: ClassData | null;
@@ -105,7 +106,7 @@ export function ReportsScreen({ classData, pack, ctx, remarks, saveRemarks }: Pr
         If this browser has no on-device model, Staffroom stops. It does not send a learner to the cloud instead.
       </p>
       <p className="row">
-        <button type="button" className="primary" onClick={draftAll} disabled={running}>Draft all remarks</button>
+        <button type="button" className="primary" {...offWhen(running, () => void draftAll())}>Draft all remarks</button>
         {running && <button type="button" onClick={() => stopper.current?.abort()}>Stop</button>}
         <button type="button" onClick={copyAll} disabled={written === 0}>Copy all</button>
       </p>
@@ -148,12 +149,12 @@ export function ReportsScreen({ classData, pack, ctx, remarks, saveRemarks }: Pr
                       />
                       Approved
                     </label>
-                    <button type="button" disabled={running} onClick={() => void draftOne(learner, true)}>Draft again</button>
+                    <button type="button" {...offWhen(running, () => void draftOne(learner, true))}>Draft again</button>
                   </p>
                 </>
               ) : (
                 <p className="row small">
-                  <button type="button" disabled={running || !levels} onClick={() => void draftOne(learner, true)}>
+                  <button type="button" {...offWhen(running || !levels, () => void draftOne(learner, true))}>
                     Draft this remark
                   </button>
                 </p>

@@ -13,6 +13,7 @@ import { lessonIdeaPrompt, plainWordsPrompt } from '../core/prompts';
 import { runTask, type RunContext } from '../core/runner';
 import { sampleClass } from '../core/sample';
 import type { Engine } from '../engine/engine';
+import { offWhen } from './a11y';
 
 interface Row {
   task: TaskId;
@@ -103,7 +104,7 @@ export function SelfTestScreen({ engine, settings, record }: Props) {
         Engine: <strong>{engine.name}</strong>.
       </p>
       <p className="row">
-        <button type="button" className="primary" onClick={run} disabled={running}>Run the self-test</button>
+        <button type="button" className="primary" {...offWhen(running, () => void run())}>Run the self-test</button>
         {running && <span role="status">Running…</span>}
       </p>
       {rows.length > 0 && (

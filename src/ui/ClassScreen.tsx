@@ -2,6 +2,7 @@ import { CBC_G5_MATHS } from '../core/curriculum';
 import { uid } from '../core/hash';
 import { sampleClass } from '../core/sample';
 import { LEVELS, type ClassData, type CurriculumPack, type Level } from '../core/types';
+import { focusSoon } from './a11y';
 
 interface Props {
   classData: ClassData | null;
@@ -29,10 +30,10 @@ export function ClassScreen({ classData, pack, onChange, onWipe }: Props) {
         <h2>Your class</h2>
         <p>Nothing is stored yet. Everything you enter here stays in this browser, on this laptop.</p>
         <p className="row">
-          <button type="button" className="primary" onClick={() => onChange(sampleClass())}>
+          <button type="button" className="primary" onClick={() => { onChange(sampleClass()); focusSoon('main h2'); }}>
             Load the invented sample class
           </button>
-          <button type="button" onClick={() => onChange(emptyClass())}>Start an empty class</button>
+          <button type="button" onClick={() => { onChange(emptyClass()); focusSoon('main h2'); }}>Start an empty class</button>
         </p>
         <p className="quiet">The sample class has 30 made-up learners. No real child is in it.</p>
       </section>

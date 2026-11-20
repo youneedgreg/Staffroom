@@ -13,6 +13,7 @@ import { SelfTestScreen } from '../ui/SelfTestScreen';
 import { StatusBar } from '../ui/StatusBar';
 import { EMPTY_SUPPORT, SupportScreen, type SupportMemory } from '../ui/SupportScreen';
 import type { Boot } from './boot';
+import { focusSoon } from '../ui/a11y';
 
 const TABS = [
   { id: 'class', label: 'Class' },
@@ -46,7 +47,12 @@ export function App({ boot }: { boot: Boot }) {
   useEffect(() => setSupport(EMPTY_SUPPORT), [classId]);
 
   useEffect(() => {
-    const onHash = () => setTab(tabFromHash());
+    // A new screen: move focus to its heading, so a keyboard or screen-reader user starts there.
+    // Not on first load, where focus starts at the top of the page.
+    const onHash = () => {
+      setTab(tabFromHash());
+      focusSoon('main h2');
+    };
     const up = () => setOnline(true);
     const down = () => setOnline(false);
     addEventListener('hashchange', onHash);
