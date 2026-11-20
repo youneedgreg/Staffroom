@@ -248,7 +248,7 @@ function GroupPanel({ group, pack, classData, ctx, settings, online, device, sta
     const outcome = await runBatch(
       group.learners,
       async (learner) => {
-        const result = await writeParentNote(ctx, pack, classData, group, learner, home);
+        const result = await writeParentNote(ctx, classData, group, learner, home, state.free);
         if ('failure' in result) {
           problem = failureText(result.failure);
           // With no on-device model every note would fail the same way, so stop at the first.

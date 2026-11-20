@@ -3,7 +3,8 @@ import { CBC_G5_MATHS as pack } from '../src/core/curriculum';
 import { findNames } from '../src/core/guard';
 import { strugglingGroups, groupNotes } from '../src/core/groups';
 import {
-  cleanParentNote,
+  buildParentNote,
+  parsePraise,
   cleanRemark,
   clip,
   difficultyPrompt,
@@ -203,10 +204,12 @@ describe('the other prompts', () => {
 
   it('builds a parent note prompt with no learner name', () => {
     const felix = byName('Felix Musyoka');
-    const spec = parentNotePrompt(pack, group.subStrand, felix, data.assessments[felix.id]!, 'Share an orange equally.', roster);
+    const spec = parentNotePrompt(felix, data.assessments[felix.id]!, roster);
     expect(findNames(spec.prompt, roster)).toEqual([]);
-    expect(spec.prompt).toContain('cannot do this yet');
-    expect(spec.prompt).toContain('Home activity: Share an orange equally.');
+    expect(spec.prompt).toContain("Teacher's note: does not line up digits");
+    // The model is not given the level or the activity: code adds what the parent must get right.
+    expect(spec.prompt).not.toMatch(/cannot do this yet|Home activity/);
+    expect(spec.schema).toBeDefined();
     expect(spec.outbound).toBeUndefined();
   });
 
@@ -280,25 +283,57 @@ describe('helpers', () => {
   });
 });
 
-describe('cleanParentNote', () => {
-  it('drops the model greeting and adds one written by code', () => {
-    expect(cleanParentNote('Dear Mr. & Mrs. Faith, [NAME] finds fractions hard.', 'Faith')).toBe(
-      'Dear parent or guardian of Faith,\n\nFaith finds fractions hard.',
+describe('parsePraise', () => {
+  const note = 'adds the tops and the bottoms when adding fractions. neat work';
+
+  it('keeps praise copied from the note', () => {
+    expect(parsePraise('{"praise": "neat work."}', 'Faith', note)).toBe('neat work');
+    expect(parsePraise('Sure: {"praise":"Neat  Work"}', 'Faith', note)).toBe('Neat Work');
+  });
+
+  it('drops praise that is not in the note, too long, empty or not JSON', () => {
+    expect(parsePraise('{"praise": "always helpful"}', 'Faith', note)).toBe('');
+    expect(parsePraise('{"praise": "Writes 0.5 as 0.05 adds denominators"}', 'Tabitha', 'writes 0.5 as 0.05. adds denominators')).toBe('');
+    const long = 'works well in a pair and helps the others in the group when they are stuck';
+    expect(parsePraise(`{"praise": "${long}"}`, 'Victor', long)).toBe('');
+    expect(parsePraise('{"praise": ""}', 'Faith', note)).toBe('');
+    // Real replies from the on-device model: the whole note, and a mistake.
+    expect(parsePraise('{"praise": "Writes 0.5 as 0.05. Adds denominators"}', 'Tabitha', 'writes 0.5 as 0.05. adds denominators')).toBe('');
+    expect(parsePraise('{"praise": "cannot find a common denominator yet"}', 'Kevin', 'guesses in division. cannot find a common denominator yet')).toBe('');
+    expect(parsePraise('{"praise": "careful otherwise"}', 'Samuel', 'mixes up cm and m when measuring. careful otherwise')).toBe('careful otherwise');
+    expect(parsePraise('neat work', 'Faith', note)).toBe('');
+  });
+
+  it('puts the name back before checking', () => {
+    expect(parsePraise('{"praise": "[NAME] helps others"}', 'Amani', 'Amani helps others')).toBe('Amani helps others');
+  });
+});
+
+describe('buildParentNote', () => {
+  const facts = {
+    topic: 'Fractions',
+    teacherNote: 'neat work',
+    difficulty: 'adding the tops and the bottoms',
+    homeActivity: 'Share an orange equally',
+  };
+  const tail =
+    ' In class we are working on a common mistake in fractions: adding the tops and the bottoms.' +
+    ' Something you can do at home: Share an orange equally.';
+
+  it('writes the greeting, the praise, the difficulty and the home activity', () => {
+    expect(buildParentNote('Neat work', 'Faith', facts)).toBe(
+      `Dear parent or guardian of Faith,\n\nSomething I have noticed about Faith: neat work.${tail}`,
     );
-    expect(cleanParentNote('Hello Parent: [NAME] tries hard.', 'Joy')).toBe('Dear parent or guardian of Joy,\n\nJoy tries hard.');
   });
 
-  it('drops a sign-off and anything after it', () => {
-    const note = cleanParentNote('[NAME] tries hard. Practise at home.\n\nKind regards,\n[Teacher Name]', 'Ian');
-    expect(note).toBe('Dear parent or guardian of Ian,\n\nIan tries hard. Practise at home.');
-    expect(cleanParentNote('[NAME] tries hard. Sincerely, Mrs Otieno', 'Ian')).not.toMatch(/Sincerely|Otieno/);
+  it('opens plainly when there is no praise', () => {
+    expect(buildParentNote('', 'Joy', facts)).toBe(`Dear parent or guardian of Joy,\n\nJoy is working hard on fractions.${tail}`);
   });
 
-  it('keeps a note that has neither', () => {
-    expect(cleanParentNote('[NAME] tries hard.', 'Ian')).toBe('Dear parent or guardian of Ian,\n\nIan tries hard.');
-  });
-
-  it('returns nothing for an empty note, so no bare greeting is shown', () => {
-    expect(cleanParentNote('  ', 'Ian')).toBe('');
+  it('uses the difficulty as the teacher left it, and copes with an empty one', () => {
+    expect(buildParentNote('', 'Ian', { ...facts, difficulty: 'mixing up cm and m.' })).toContain(
+      'a common mistake in fractions: mixing up cm and m.',
+    );
+    expect(buildParentNote('', 'Ian', { ...facts, difficulty: ' ' })).toContain('In class we are giving extra practice in fractions.');
   });
 });

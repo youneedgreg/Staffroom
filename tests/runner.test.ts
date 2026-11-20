@@ -354,10 +354,13 @@ describe('flows', () => {
     expect(p.plan.sources).toHaveLength(1);
 
     const felix = roster.find((l) => l.name === 'Felix Musyoka')!;
-    const n = await writeParentNote(ctx, pack, data, group, felix, p.parsed.home);
+    const n = await writeParentNote(ctx, data, group, felix, p.parsed.home, d.difficulty);
     if (!('note' in n)) throw new Error('note failed');
-    // The greeting is written by code; the model's own "Dear Mr. and Mrs. …" and sign-off are dropped.
-    expect(n.note.startsWith('Dear parent or guardian of Felix,\n\nFelix is still finding')).toBe(true);
+    // Felix's note has no praise in it, so the demo's "neat work" is dropped and the opening is plain.
+    expect(n.note.startsWith('Dear parent or guardian of Felix,\n\nFelix is working hard on fractions.')).toBe(true);
+    // The difficulty and the home activity are added by code, word for word.
+    expect(n.note).toContain(`In class we are working on a common mistake in ${group.subStrand.name.toLowerCase()}: mixing up the steps when working with fractions.`);
+    expect(n.note).toContain(`Something you can do at home: ${p.parsed.home}`);
     expect(n.note).not.toMatch(/Mrs\.|regards|\[Teacher\]/i);
 
     expect(demo.calls.map((c) => [c.task, c.mode])).toEqual([
@@ -411,7 +414,7 @@ describe('flows', () => {
     const { ctx, demo, ledger } = setup();
     const notes: Record<string, string> = {};
     const outcome = await runBatch(group.learners, async (l) => {
-      const n = await writeParentNote(ctx, pack, data, group, l, 'Share an orange equally.');
+      const n = await writeParentNote(ctx, data, group, l, 'Share an orange equally.', 'adding the tops and the bottoms');
       if (!('note' in n)) return 'failed';
       notes[l.id] = n.note;
       return 'ok';

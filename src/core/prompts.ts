@@ -291,46 +291,99 @@ export function parsePlan(raw: string): ParsedPlan {
 // 4. A note to one parent. ONLY_ON_DEVICE.
 // ---------------------------------------------------------------------------
 
+/**
+ * The model only copies a word of praise from the teacher's note, and code keeps it only if it
+ * really is in the note. Asked to write a sentence about the child, the on-device model kept
+ * stating a mistake as if it were right ("understands that you add the tops together"), and it
+ * cut the home activity to its first step. So code writes the rest of the note: the difficulty
+ * the teacher reviewed in step 2, and the home activity word for word.
+ */
 export const PARENT_SYSTEM =
-  'You write a short note from a class teacher to a parent in Kenya. ' +
-  `Three sentences, 60 words at most. Call the child ${NAME_TOKEN}. ` +
-  'Say what the child finds hard, in kind words. Then give the one home activity provided, in simple steps. ' +
-  'Use only the facts given. Plain English a parent can follow. No level names. ' +
-  'No greeting and no sign-off: Staffroom adds those.';
+  "You read a teacher's short note about one learner. Copy, word for word, the part of the note " +
+  'that praises the learner (for example "helps others" or "neat work"). ' +
+  'Praise means a good habit or a strength. A mistake, something the learner cannot do yet, ' +
+  'or something they do wrongly is never praise. If there is no praise, return an empty string.';
+
+export const PARENT_SCHEMA: Record<string, unknown> = {
+  type: 'object',
+  properties: { praise: { type: 'string' } },
+  required: ['praise'],
+  additionalProperties: false,
+};
 
 /** Written by code so the model never guesses the parents' names (it wrote "Dear Mr. & Mrs. Faith"). */
 export function parentGreeting(first: string): string {
   return `Dear parent or guardian of ${first},`;
 }
 
-const GREETING = /^\s*(?:dear|hello|hi|greetings|good (?:morning|afternoon|evening))\b[^\n,:!]*[,:!]?\s*/i;
-const SIGN_OFF =
-  /\s*(?:(?:with )?(?:best|kind|warm(?:est)?)? ?regards|yours (?:sincerely|faithfully|truly)|sincerely|warmly|best wishes)\s*,?[\s\S]*$/i;
-
-/** Strip any greeting or sign-off the model wrote anyway, tidy it, then add the code's greeting. */
-export function cleanParentNote(raw: string, first: string): string {
-  const body = cleanRemark(raw.replace(/[*_#`]/g, '').replace(GREETING, '').replace(SIGN_OFF, ''), first);
-  return body ? `${parentGreeting(first)}\n\n${body}` : '';
+/** What code builds the note from. Everything here is text the teacher wrote or has seen. */
+export interface ParentNoteFacts {
+  topic: string;
+  /** The teacher's note about this learner, as typed. The praise must be found in it. */
+  teacherNote: string;
+  /** The group's difficulty phrase as it stands in step 2, after any edit by the teacher. */
+  difficulty: string;
+  /** The home activity from the plan, unchanged. */
+  homeActivity: string;
 }
 
-export function parentNotePrompt(
-  pack: CurriculumPack,
-  subStrand: SubStrand,
-  learner: Learner,
-  assessment: Assessment,
-  homeActivity: string,
-  roster: Learner[] = [learner],
-): PromptSpec {
-  const level = assessment.levels[subStrand.id];
+function sentence(text: string): string {
+  const t = text.replace(/\s+/g, ' ').trim().replace(/[\s,;:]+$/, '');
+  return t && !/[.!?]$/.test(t) ? `${t}.` : t;
+}
+
+/**
+ * The praise the model copied, or '' when it is missing, too long or not in the teacher's note.
+ * The check stops made-up praise; it can't stop the model calling a mistake praise, so the
+ * screen asks the teacher to check each note.
+ */
+export function parsePraise(raw: string, first: string, teacherNote: string): string {
+  let praise = '';
+  const brace = raw.indexOf('{');
+  try {
+    const parsed: unknown = JSON.parse(brace >= 0 ? raw.slice(brace, raw.lastIndexOf('}') + 1) : raw);
+    const value = parsed && typeof parsed === 'object' ? (parsed as { praise?: unknown }).praise : undefined;
+    if (typeof value === 'string') praise = value;
+  } catch {
+    return '';
+  }
+  praise = praise
+    .replace(/\[\s*name\s*\]/gi, first)
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[.!,;:]+$/, '');
+  if (!praise || praise.split(' ').length > 12) return '';
+  // One part of the note only: the model sometimes copies the whole note, mistakes and all.
+  if (/[.;!?]\s/.test(praise)) return '';
+  if (MISTAKE_WORDS.test(praise)) return '';
+  const squash = (t: string) => t.toLowerCase().replace(/\s+/g, ' ');
+  return squash(teacherNote).includes(squash(praise)) ? praise : '';
+}
+
+/** Words that mark a slip, not a strength. A quote with any of them is never used as praise. */
+const MISTAKE_WORDS =
+  /\b(?:not|no|never|cannot|can't|don't|doesn't|unsure|confus\w*|mix(?:es|ed)? up|forget\w*|forgot|guess\w*|struggl\w*|wrong\w*|careless|absent|needs?|slow|rush\w*|only)\b/i;
+
+/** The greeting, the praise (or a plain opening), the difficulty sentence and the home activity. */
+export function buildParentNote(praise: string, first: string, facts: ParentNoteFacts): string {
+  const topic = facts.topic.toLowerCase();
+  const opening = praise
+    ? `Something I have noticed about ${first}: ${sentence(praise.charAt(0).toLowerCase() + praise.slice(1))}`
+    : `${first} is working hard on ${topic}.`;
+  const difficulty = sentence(facts.difficulty).replace(/[.!?]$/, '');
+  const middle = difficulty
+    ? `In class we are working on a common mistake in ${topic}: ${difficulty}.`
+    : `In class we are giving extra practice in ${topic}.`;
+  const home = sentence(facts.homeActivity);
+  const parts = [opening, middle, home ? `Something you can do at home: ${home}` : ''].filter(Boolean);
+  return `${parentGreeting(first)}\n\n${parts.join(' ')}`;
+}
+
+/** The model sees only the teacher's note, names replaced. Not the level, the topic or the activity. */
+export function parentNotePrompt(learner: Learner, assessment: Assessment, roster: Learner[] = [learner]): PromptSpec {
   const note = prepareNote(assessment.note, learner, roster);
-  const prompt = [
-    `Topic: ${subStrand.name} (${pack.learningArea}, ${pack.grade}).`,
-    `How the child is doing: ${level ? pack.levelMeaning[level] : 'not assessed yet'}.`,
-    `Teacher's note: ${note.trim() ? clip(note, 300) : 'none'}`,
-    `Home activity: ${clip(homeActivity, 500)}`,
-    `Write the note about ${NAME_TOKEN}.`,
-  ].join('\n');
-  return { task: 'personalise', system: PARENT_SYSTEM, prompt };
+  const prompt = `Teacher's note: ${note.trim() ? clip(note, 300) : 'none'}\nReturn JSON: {"praise": "..."}`;
+  return { task: 'personalise', system: PARENT_SYSTEM, prompt, schema: PARENT_SCHEMA };
 }
 
 // ---------------------------------------------------------------------------
