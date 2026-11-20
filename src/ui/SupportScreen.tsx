@@ -466,7 +466,7 @@ function GroupPanel({
         </>
       )}
 
-      {library && <SharedPlans library={library} pack={pack} group={group} version={libraryVersion} />}
+      {library && <SharedPlans library={library} pack={pack} group={group} version={libraryVersion} online={online} />}
 
       <QuickHelp
         specs={{
@@ -643,14 +643,18 @@ function SharedPlans({
   pack,
   group,
   version,
+  online,
 }: {
   library: PlanLibrary;
   pack: CurriculumPack;
   group: Group;
   version: number;
+  /** Offline, nothing is loaded; the list loads again when the connection comes back. */
+  online: boolean;
 }) {
   const [state, setState] = useState<LibraryState>({ status: 'loading' });
   useEffect(() => {
+    if (!online) return;
     let live = true;
     setState({ status: 'loading' });
     library.list(pack.id, group.subStrand.id).then(
@@ -660,7 +664,7 @@ function SharedPlans({
     return () => {
       live = false;
     };
-  }, [library, pack.id, group.subStrand.id, version]);
+  }, [library, pack.id, group.subStrand.id, version, online]);
 
   return (
     <div className="step" data-testid="shared-plans">
@@ -669,41 +673,49 @@ function SharedPlans({
         Plans for {group.subStrand.name} that teachers using Staffroom chose to share, newest first. Each is a
         question with no learner in it and the cloud's answer, asked without web sources.
       </p>
-      {state.status === 'loading' && <p role="status">Loading shared plans…</p>}
-      {state.status === 'error' && (
-        <p className="small" data-testid="shared-plans-error">The shared plans could not be loaded. Check the connection and open the group again.</p>
-      )}
-      {state.status === 'ok' && state.plans.length === 0 && (
-        <p className="small" data-testid="shared-plans-empty">No one has shared a plan for this topic yet.</p>
-      )}
-      {state.status === 'ok' && state.plans.length > 0 && (
-        <ul className="cards" data-testid="shared-plans-list">
-          {state.plans.map((p) => {
-            const parsedShared = parsePlan(p.answer);
-            return (
-              <li key={p.id} className="card">
-                <p className="row">
-                  <span className="small">Asked {new Date(p.at).toLocaleDateString()}</span>
-                  {p.mine && <span className="badge" data-testid="shared-mine">You shared this</span>}
-                  <span className="badge warn-badge">No web sources</span>
-                </p>
-                <details>
-                  <summary>The question that was asked</summary>
-                  <p>{p.question}</p>
-                </details>
-                {parsedShared.activities.length > 0 ? (
-                  <>
-                    <ol>{parsedShared.activities.map((a, i) => <li key={i}>{a}</li>)}</ol>
-                    {parsedShared.check && <p><strong>Check after two weeks:</strong> {parsedShared.check}</p>}
-                    {parsedShared.home && <p><strong>At home:</strong> {parsedShared.home}</p>}
-                  </>
-                ) : (
-                  <pre>{p.answer}</pre>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+      {!online ? (
+        <p className="small" data-testid="shared-plans-offline">
+          Shared plans need the internet. They load when the connection comes back.
+        </p>
+      ) : (
+        <>
+          {state.status === 'loading' && <p role="status">Loading shared plans…</p>}
+          {state.status === 'error' && (
+            <p className="small" data-testid="shared-plans-error">The shared plans could not be loaded. Check the connection and open the group again.</p>
+          )}
+          {state.status === 'ok' && state.plans.length === 0 && (
+            <p className="small" data-testid="shared-plans-empty">No one has shared a plan for this topic yet.</p>
+          )}
+          {state.status === 'ok' && state.plans.length > 0 && (
+            <ul className="cards" data-testid="shared-plans-list">
+              {state.plans.map((p) => {
+                const parsedShared = parsePlan(p.answer);
+                return (
+                  <li key={p.id} className="card">
+                    <p className="row">
+                      <span className="small">Asked {new Date(p.at).toLocaleDateString()}</span>
+                      {p.mine && <span className="badge" data-testid="shared-mine">You shared this</span>}
+                      <span className="badge warn-badge">No web sources</span>
+                    </p>
+                    <details>
+                      <summary>The question that was asked</summary>
+                      <p>{p.question}</p>
+                    </details>
+                    {parsedShared.activities.length > 0 ? (
+                      <>
+                        <ol>{parsedShared.activities.map((a, i) => <li key={i}>{a}</li>)}</ol>
+                        {parsedShared.check && <p><strong>Check after two weeks:</strong> {parsedShared.check}</p>}
+                        {parsedShared.home && <p><strong>At home:</strong> {parsedShared.home}</p>}
+                      </>
+                    ) : (
+                      <pre>{p.answer}</pre>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </>
       )}
     </div>
   );

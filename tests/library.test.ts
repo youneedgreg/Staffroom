@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   demoLibrary,
   FAILED_SHARE_TEXT,
@@ -101,5 +101,16 @@ describe('sharePlan', () => {
     expect(entries[0]).toMatchObject({ outcome: 'error', sentText: sharedText(plan()) });
     expect(ranText(entries[0])).toBe('Sent to the shared plan library, not saved');
     expect(summarise(entries).errors).toBe(1);
+  });
+});
+
+describe('demoLibrary offline', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('rejects the list offline instead of answering with an empty one', async () => {
+    vi.stubGlobal('navigator', { onLine: false });
+    await expect(demoLibrary().list('cbc-g5-maths', 'fractions')).rejects.toThrow();
+    vi.stubGlobal('navigator', { onLine: true });
+    expect((await demoLibrary().list('cbc-g5-maths', 'fractions')).length).toBe(1);
   });
 });

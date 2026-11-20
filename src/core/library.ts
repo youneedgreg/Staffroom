@@ -24,7 +24,7 @@ export interface SharedPlan {
 export interface PlanLibrary {
   /** Share a plan with teachers using Staffroom. Sends the question and the answer, nothing else. */
   share(plan: Plan): Promise<void>;
-  /** Up to ten plans for one topic, newest first. */
+  /** Up to ten plans for one topic, newest first. Rejects when the library can't be reached. */
   list(packId: string, subStrandId: string): Promise<SharedPlan[]>;
 }
 
@@ -120,7 +120,8 @@ export function demoLibrary(down = false): PlanLibrary {
       shared.push({ ...plan, id: `shared-${shared.length + 1}`, mine: true });
     },
     async list(packId, subStrandId) {
-      if (down) throw new Error('unavailable');
+      // Like the real library, which reads from the server only.
+      if (down || (typeof navigator !== 'undefined' && navigator.onLine === false)) throw new Error('unavailable');
       return [...shared.filter((p) => p.packId === packId && p.subStrandId === subStrandId), colleague(packId, subStrandId)]
         .sort((a, b) => b.at - a.at)
         .slice(0, 10);
