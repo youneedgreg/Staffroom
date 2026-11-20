@@ -14,11 +14,13 @@ import { runTask, type RunContext } from '../core/runner';
 import { sampleClass } from '../core/sample';
 import type { Engine } from '../engine/engine';
 import { offWhen } from './a11y';
+import { Ran, whereOf, type Where } from './Ran';
 
 interface Row {
   task: TaskId;
   mode: Mode | 'disabled';
   ran: string;
+  where: Where;
   ms: number;
   result: string;
   ok: boolean;
@@ -64,7 +66,7 @@ export function SelfTestScreen({ engine, settings, record }: Props) {
       const ran = ranText(e);
       setRows((current) => [
         ...current,
-        { task, mode: resolveMode(task, settings).mode, ran, ms: e?.ms ?? 0, result, ok, stopped: !ok && !!e && stoppedNoModel(e) },
+        { task, mode: resolveMode(task, settings).mode, ran, where: whereOf(e), ms: e?.ms ?? 0, result, ok, stopped: !ok && !!e && stoppedNoModel(e) },
       ]);
       last = null;
     };
@@ -99,16 +101,18 @@ export function SelfTestScreen({ engine, settings, record }: Props) {
   return (
     <section>
       <h2>Self-test</h2>
-      <p>
-        Runs six tasks once on the invented sample class and shows where each one ran.
-        Engine: <strong>{engine.name}</strong>.
-      </p>
-      <p className="row">
-        <button type="button" className="primary" {...offWhen(running, () => void run())}>Run the self-test</button>
-        {running && <span role="status">Running…</span>}
-      </p>
+      <div className="step toolbar">
+        <p>
+          Runs six tasks once on the invented sample class and shows where each one ran.
+          Engine: <strong>{engine.name}</strong>.
+        </p>
+        <p className="row">
+          <button type="button" className="primary" {...offWhen(running, () => void run())}>Run the self-test</button>
+          {running && <span role="status">Running…</span>}
+        </p>
+      </div>
       {rows.length > 0 && (
-        <div className="scroll">
+        <div className="scroll sheet">
           <table data-testid="selftest">
             <caption>One row per task</caption>
             <thead>
@@ -125,7 +129,7 @@ export function SelfTestScreen({ engine, settings, record }: Props) {
                 <tr key={r.task}>
                   <th scope="row">{TASKS[r.task].label}</th>
                   <td><code>{MODE_TEXT[r.mode]}</code></td>
-                  <td>{r.ran}</td>
+                  <td><Ran where={r.where} text={r.ran} /></td>
                   <td>{r.ms} ms</td>
                   <td className={r.ok || r.stopped ? undefined : 'bad'}>
                     {r.ok ? r.result : r.stopped ? `Stopped, as designed: ${r.result}` : `Failed: ${r.result}`}
@@ -135,7 +139,7 @@ export function SelfTestScreen({ engine, settings, record }: Props) {
             </tbody>
           </table>
           {rows.some((r) => r.stopped) && (
-            <p data-testid="selftest-no-model">
+            <p className="sheet-note" data-testid="selftest-no-model">
               With no on-device model, the three learner tasks stop. That is what Staffroom is meant to do: nothing
               about a child went to the cloud.
             </p>

@@ -3,6 +3,7 @@ import { uid } from '../core/hash';
 import { sampleClass } from '../core/sample';
 import { LEVELS, type ClassData, type CurriculumPack, type Level } from '../core/types';
 import { focusSoon } from './a11y';
+import { LaptopIcon } from './icons';
 
 interface Props {
   classData: ClassData | null;
@@ -28,14 +29,17 @@ export function ClassScreen({ classData, pack, onChange, onWipe }: Props) {
     return (
       <section>
         <h2>Your class</h2>
-        <p>Nothing is stored yet. Everything you enter here stays in this browser, on this laptop.</p>
-        <p className="row">
-          <button type="button" className="primary" onClick={() => { onChange(sampleClass()); focusSoon('main h2'); }}>
-            Load the invented sample class
-          </button>
-          <button type="button" onClick={() => { onChange(emptyClass()); focusSoon('main h2'); }}>Start an empty class</button>
-        </p>
-        <p className="quiet">The sample class has 30 made-up learners. No real child is in it.</p>
+        <div className="step welcome">
+          <p className="where laptop"><LaptopIcon />On this laptop</p>
+          <p>Nothing is stored yet. Everything you enter here stays in this browser, on this laptop.</p>
+          <p className="row">
+            <button type="button" className="primary" onClick={() => { onChange(sampleClass()); focusSoon('main h2'); }}>
+              Load the invented sample class
+            </button>
+            <button type="button" onClick={() => { onChange(emptyClass()); focusSoon('main h2'); }}>Start an empty class</button>
+          </p>
+          <p className="quiet">The sample class has 30 made-up learners. No real child is in it.</p>
+        </div>
       </section>
     );
   }
@@ -80,19 +84,22 @@ export function ClassScreen({ classData, pack, onChange, onWipe }: Props) {
       <p>
         {pack.grade} {pack.learningArea}, {pack.curriculum}. {data.learners.length} learners.
       </p>
-      <div className="fields">
-        <label>
-          School name
-          <input value={data.schoolName} onChange={(e) => update({ schoolName: e.target.value })} />
-        </label>
-        <label>
-          Your name
-          <input value={data.teacherName} onChange={(e) => update({ teacherName: e.target.value })} />
-        </label>
+      <div className="step">
+        <p className="where laptop"><LaptopIcon />On this laptop</p>
+        <div className="fields">
+          <label>
+            School name
+            <input value={data.schoolName} onChange={(e) => update({ schoolName: e.target.value })} />
+          </label>
+          <label>
+            Your name
+            <input value={data.teacherName} onChange={(e) => update({ teacherName: e.target.value })} />
+          </label>
+        </div>
+        <p className="quiet">Both names are kept here so Staffroom can stop them from being sent anywhere.</p>
       </div>
-      <p className="quiet">Both names are kept here so Staffroom can stop them from being sent anywhere.</p>
 
-      <div className="scroll">
+      <div className="scroll sheet roster">
         <table>
           <caption>Levels and notes for this term</caption>
           <thead>
@@ -149,7 +156,7 @@ export function ClassScreen({ classData, pack, onChange, onWipe }: Props) {
           </tbody>
         </table>
       </div>
-      <p className="row">
+      <p className="row class-actions">
         <button type="button" onClick={addLearner}>Add a learner</button>
         <button
           type="button"
