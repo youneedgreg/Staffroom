@@ -29,9 +29,10 @@ const SDK_MODE: Record<Mode, InferenceMode> = {
   only_in_cloud: InferenceMode.ONLY_IN_CLOUD,
 };
 
-/** Chrome's Prompt API global. Only the one call we need. */
+/** Chrome's Prompt API global. Only the calls we need. */
 interface PromptApi {
   availability(options?: object): Promise<DeviceStatus>;
+  create(options?: object): Promise<{ destroy(): void }>;
 }
 
 function promptApi(): PromptApi | undefined {
@@ -233,6 +234,26 @@ export class FirebaseEngine implements Engine {
     } catch {
       return 'unavailable';
     }
+  }
+
+  private warming: Promise<void> | null = null;
+
+  warmDevice(): Promise<void> {
+    this.warming ??= (async () => {
+      const api = promptApi();
+      if (!api || (await this.deviceStatus()) !== 'available') {
+        this.warming = null; // Try again once the model is ready, e.g. after a download.
+        return;
+      }
+      try {
+        // Creating a session is what loads the model; a prompt adds nothing.
+        const session = await api.create(onDeviceParams('You are a helpful assistant.', false).createOptions);
+        session.destroy();
+      } catch {
+        // A failed warm-up only means the first task is slower. The task reports its own errors.
+      }
+    })();
+    return this.warming;
   }
 
   async prepareDevice(onProgress: (progress: number) => void): Promise<void> {
