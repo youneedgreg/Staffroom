@@ -123,7 +123,6 @@ h5 { font-size: 0.95rem; margin: 0.75rem 0 0.25rem; }
 .task-map caption { text-align: left; margin-bottom: 0.35rem; }
 .about { max-width: 46rem; }
 .about h3 { margin-top: 1.75rem; }
-.steps li { margin-bottom: 0.5rem; }
 /* Badges: teal for the laptop, orange for the cloud. */
 .badge { display: inline-flex; align-items: center; gap: 0.35rem; border: 1px solid var(--good); color: var(--good);
   border-radius: 999px; padding: 0.15rem 0.7rem; font-size: 0.875rem; font-weight: 600; }
@@ -229,3 +228,16 @@ h5 { font-size: 0.95rem; margin: 0.75rem 0 0.25rem; }
 
 /* Self-test: the notice under the table. */
 .sheet-note { margin: 0.75rem 0 0.5rem; }
+
+/* About: a reading page. The rule stands out in the laptop colour; the steps are numbered discs. */
+.about h3 { font-size: 1.2rem; }
+.about [data-testid="about-rule"] { background: var(--laptop-bg); border-left: 5px solid var(--laptop); border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 1rem 1.25rem; line-height: 1.6; }
+.about [data-testid="about-rule"] strong { color: var(--laptop); }
+.steps { list-style: none; counter-reset: step; padding: 0; display: grid; gap: 0.6rem; }
+.steps li { counter-increment: step; position: relative; padding: 0.15rem 0 0 2.6rem; margin: 0; min-height: 1.9rem; }
+.steps li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 1.9rem; height: 1.9rem; border-radius: 999px;
+  background: var(--ink); color: var(--paper); font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; }
+.about .scroll { background: var(--paper); border: 1px solid var(--hair); border-radius: var(--radius); padding: 0 1rem 0.5rem; }
+.about ul { padding-left: 1.25rem; }
+.about ul li { margin: 0.35rem 0; }
