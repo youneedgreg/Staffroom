@@ -208,7 +208,7 @@ function GroupPanel({ group, pack, classData, ctx, settings, online, device, sta
     update({
       busy: undefined,
       free: result.difficulty,
-      problem: result.difficulty ? undefined : 'There are no notes for this group, so there was nothing to sum up. Type the difficulty yourself.',
+      problem: result.difficulty ? undefined : "The notes for this group don't describe a difficulty with this topic, so there was nothing to sum up. Type the difficulty yourself.",
       problemAt: 'sum',
     });
   };
