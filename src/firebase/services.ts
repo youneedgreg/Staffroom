@@ -31,10 +31,13 @@ import type { PlanLibrary, SharedPlan } from '../core/library';
 import type { Engine } from '../engine/engine';
 import { FirebaseEngine } from '../engine/firebase';
 
-const env = import.meta.env;
-
+// Each value is read as `import.meta.env.NAME`, never through a copy of `import.meta.env`:
+// a copy makes Vite put every VITE_ value in the build, the dev-only debug token included.
+// `scripts/postbuild.mjs` fails the build if the debug token is ever found in `dist/`.
 export function hasFirebaseConfig(): boolean {
-  return Boolean(env.VITE_FIREBASE_API_KEY && env.VITE_FIREBASE_PROJECT_ID && env.VITE_FIREBASE_APP_ID);
+  return Boolean(
+    import.meta.env.VITE_FIREBASE_API_KEY && import.meta.env.VITE_FIREBASE_PROJECT_ID && import.meta.env.VITE_FIREBASE_APP_ID,
+  );
 }
 
 export interface Services {
@@ -97,23 +100,23 @@ function planLibrary(db: Firestore, uid: () => string | undefined): PlanLibrary 
 
 export async function startFirebase(): Promise<Services> {
   const app: FirebaseApp = initializeApp({
-    apiKey: env.VITE_FIREBASE_API_KEY,
-    authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
-    projectId: env.VITE_FIREBASE_PROJECT_ID,
-    storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-    appId: env.VITE_FIREBASE_APP_ID,
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID,
   });
 
   // App Check must start before any other Firebase service is used.
   // In `npm run dev` the debug provider is used: the token is printed in the browser console
   // the first time, and you register it in the Firebase console (App Check, Apps, Manage debug tokens).
-  if (env.DEV) {
+  if (import.meta.env.DEV) {
     (self as { FIREBASE_APPCHECK_DEBUG_TOKEN?: string | boolean }).FIREBASE_APPCHECK_DEBUG_TOKEN =
-      env.VITE_APPCHECK_DEBUG_TOKEN || true;
+      import.meta.env.VITE_APPCHECK_DEBUG_TOKEN || true;
   }
   initializeAppCheck(app, {
-    provider: new ReCaptchaEnterpriseProvider(env.VITE_RECAPTCHA_ENTERPRISE_SITE_KEY ?? ''),
+    provider: new ReCaptchaEnterpriseProvider(import.meta.env.VITE_RECAPTCHA_ENTERPRISE_SITE_KEY ?? ''),
     isTokenAutoRefreshEnabled: true,
   });
 
@@ -121,7 +124,7 @@ export async function startFirebase(): Promise<Services> {
   const engine = new FirebaseEngine(ai);
 
   const rc = getRemoteConfig(app);
-  rc.settings.minimumFetchIntervalMillis = env.DEV ? 0 : 3_600_000;
+  rc.settings.minimumFetchIntervalMillis = import.meta.env.DEV ? 0 : 3_600_000;
   rc.defaultConfig = {
     [RC_KEYS.policy]: DEFAULT_SETTINGS.policy,
     [RC_KEYS.cloudModel]: DEFAULT_SETTINGS.cloudModel,
