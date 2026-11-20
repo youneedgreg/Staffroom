@@ -245,7 +245,9 @@ function GroupPanel({
         ? 'You are offline, so nothing can be sent. Connect to the internet to ask the cloud.'
         : !verdict.ok
           ? 'Fix what is listed above first. Nothing is sent while the check fails.'
-          : null;
+          : !state.free.trim()
+            ? 'Type the difficulty they share first. A question with no difficulty in it is not sent.'
+            : null;
 
   // 6. Ask once. Never retry on our own: a second send needs a second click.
   //    `search: false` is Route A's second send, from the "Ask without web sources" button only.

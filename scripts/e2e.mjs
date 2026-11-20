@@ -218,6 +218,9 @@ try {
     check('support: sum up refuses under step 1 and says to type the difficulty',
       (await text(page, 'sum-problem')).includes('never sent to the cloud instead') &&
       (await text(page, 'sum-problem')).includes('type the difficulty yourself in step 2'));
+    check('support: with the difficulty box empty, "Ask the cloud" is switched off and says why',
+      (await page.getAttribute('[data-testid="ask"]', 'aria-disabled')) === 'true' &&
+      (await text(page, 'ask-reason')).startsWith('Type the difficulty they share first.'));
     await page.fill('[data-testid="outbound-free"]', 'adding the tops and the bottoms');
     await page.click('[data-testid="ask"]');
     await page.waitForSelector('[data-testid="write-notes"]');
@@ -506,6 +509,8 @@ try {
     await page.waitForSelector('[data-testid="batch-message"]');
     await press('nav a[href="#/support"]');
     await page.waitForSelector('[data-testid="groups"] li');
+    // The new tab moves focus to its heading on the next frame; wait for that, or it can take focus back mid-press.
+    await page.waitForFunction(() => document.activeElement?.tagName === 'H2');
     await press('[data-testid="groups"] li >> nth=0 >> text=Plan support');
     await page.waitForSelector('[data-testid="outbound"]');
     await press('text=Sum up the difficulty');
