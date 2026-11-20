@@ -1,6 +1,7 @@
 import { ranText, stoppedNoModel, summarise, timedOutInCloud, type LedgerEntry, type LedgerMode } from '../core/ledger';
 import { TASKS } from '../core/policy';
 import { CloudIcon, LaptopIcon } from './icons';
+import { Ran, whereOf } from './Ran';
 
 const MODE_TEXT: Record<LedgerMode, string> = {
   only_on_device: 'Device only',
@@ -12,19 +13,6 @@ const MODE_TEXT: Record<LedgerMode, string> = {
 };
 
 const OUTCOME_TEXT = { ok: 'Done', blocked: 'Blocked by the name check', disabled: 'Switched off', error: 'Failed' } as const;
-
-/** Where it ran, coloured like everywhere else: teal for this laptop, orange for anything that left it. */
-function Ran({ e }: { e: LedgerEntry }) {
-  const left = e.source === 'in_cloud' || e.sentChars > 0;
-  const where = e.source === 'on_device' && e.sentChars === 0 ? 'laptop' : left ? 'cloud' : '';
-  return (
-    <span className={`ran ${where}`}>
-      {where === 'laptop' && <LaptopIcon />}
-      {where === 'cloud' && <CloudIcon />}
-      {ranText(e)}
-    </span>
-  );
-}
 
 /** The Result cell. A stop for a missing on-device model is the rule working, so it isn't shown as a failure. */
 function resultText(e: LedgerEntry): string {
@@ -76,7 +64,7 @@ export function LedgerScreen({ ledger, onClear }: { ledger: LedgerEntry[]; onCle
                   <td>{new Date(e.at).toLocaleTimeString()}</td>
                   <th scope="row">{e.task === 'share' ? 'Share a plan with other teachers' : TASKS[e.task].label}</th>
                   <td>{MODE_TEXT[e.mode]}</td>
-                  <td><Ran e={e} /></td>
+                  <td><Ran where={whereOf(e)} text={ranText(e)} /></td>
                   <td>{resultText(e)}</td>
                   <td>
                     {e.sentText ? (

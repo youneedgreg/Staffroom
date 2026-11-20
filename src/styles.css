@@ -206,7 +206,7 @@ h5 { font-size: 0.95rem; margin: 0.75rem 0 0.25rem; }
 /* Ledger table: a white sheet, the Ran column coloured by where the request went. */
 .sheet { background: var(--paper); border: 1px solid var(--hair); border-radius: var(--radius); padding: 0 1rem 0.5rem; }
 .sheet th, .sheet td { padding: 0.55rem 0.5rem; border-bottom-color: var(--hair); }
-.sheet td:nth-child(4) { min-width: 9rem; }
+.sheet td:has(> .ran) { min-width: 9rem; }
 .sheet thead th { color: var(--line); }
 .ran { font-weight: 600; }
 .ran svg { vertical-align: -3px; margin-right: 0.35rem; }
@@ -226,3 +226,6 @@ h5 { font-size: 0.95rem; margin: 0.75rem 0 0.25rem; }
 @media (max-width: 40rem) {
   .roster input:not(.note) { min-width: 7rem; width: 7rem; }
 }
+
+/* Self-test: the notice under the table. */
+.sheet-note { margin: 0.75rem 0 0.5rem; }
