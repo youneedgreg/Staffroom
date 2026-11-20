@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CBC_G5_MATHS as pack } from '../src/core/curriculum';
 import { findNames } from '../src/core/guard';
-import { strugglingGroups, groupNotes } from '../src/core/groups';
+import { strugglingGroups, groupNotes, topicPart } from '../src/core/groups';
 import {
   buildParentNote,
   parsePraise,
@@ -140,7 +140,32 @@ describe('remark focus: the strength and next step come from the levels', () => 
 
 describe('difficulty', () => {
   const group = strugglingGroups(data, pack)[0]!;
-  const notes = groupNotes(data, group);
+  const notes = groupNotes(data, pack, group);
+
+  it('keeps only the part of each note about the topic', () => {
+    const byId = (id: string) => strugglingGroups(data, pack).find((g) => g.subStrand.id === id)!;
+    const fractions = groupNotes(data, pack, byId('fractions')).join('\n');
+    // The Fractions group's notes also hold decimal and division mistakes. They must not reach the model.
+    expect(fractions).not.toMatch(/decimal|0\.5|division|divid|sharing/i);
+    expect(fractions).toContain('adds the tops and the bottoms when adding fractions');
+    expect(fractions).toContain('adds denominators');
+    expect(fractions).not.toContain('neat work');
+    const decimals = groupNotes(data, pack, byId('decimals')).join('\n');
+    expect(decimals).toContain('writes 0.5 as 0.05');
+    expect(decimals).toContain('treats a decimal point like a remainder');
+    expect(decimals).not.toMatch(/denominator|fraction/i);
+  });
+
+  it('keeps a note that names no topic, and drops one about other topics only', () => {
+    const fractions = pack.subStrands.find((s) => s.id === 'fractions')!;
+    expect(topicPart('keeps getting it wrong, needs time', fractions, pack)).toBe('keeps getting it wrong, needs time');
+    expect(topicPart('mixes up cm and m when measuring. careful otherwise', fractions, pack)).toBe('');
+    expect(topicPart('  ', fractions, pack)).toBe('');
+    const bare = { ...fractions, keywords: undefined };
+    expect(topicPart('treats a decimal point like a remainder. adds denominators', bare, pack)).toBe(
+      'treats a decimal point like a remainder. adds denominators',
+    );
+  });
 
   it('sends the notes with every name removed', () => {
     const spec = difficultyPrompt(pack, group, [...notes, 'Felix copies from Sharon Akinyi'], roster);

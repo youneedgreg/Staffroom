@@ -7,6 +7,7 @@ import type { CurriculumPack, Level } from './types';
  * Strand and sub-strand names follow the KICD Grade 5 Mathematics curriculum design.
  * The six sub-strands here are a sample term, not the whole year.
  * `levelMeaning` is our own wording, not official KICD text.
+ * `keywords` are our own list of the words a note might use for each topic.
  */
 export const CBC_G5_MATHS: CurriculumPack = {
   id: 'ke-cbc-g5-maths',
@@ -26,12 +27,42 @@ export const CBC_G5_MATHS: CurriculumPack = {
     BE: 'cannot do this yet and needs close support',
   },
   subStrands: [
-    { id: 'whole-numbers', strand: 'Numbers', name: 'Whole Numbers' },
-    { id: 'multiplication', strand: 'Numbers', name: 'Multiplication' },
-    { id: 'division', strand: 'Numbers', name: 'Division' },
-    { id: 'fractions', strand: 'Numbers', name: 'Fractions' },
-    { id: 'decimals', strand: 'Numbers', name: 'Decimals' },
-    { id: 'length', strand: 'Measurement', name: 'Length' },
+    {
+      id: 'whole-numbers',
+      strand: 'Numbers',
+      name: 'Whole Numbers',
+      keywords: ['place value', 'large numbers?\\b', 'lines? up', 'digits?\\b'],
+    },
+    {
+      id: 'multiplication',
+      strand: 'Numbers',
+      name: 'Multiplication',
+      keywords: ['multipl', 'times\\b', 'tables?\\b', 'product'],
+    },
+    {
+      id: 'division',
+      strand: 'Numbers',
+      name: 'Division',
+      keywords: ['divi', 'shar(?:e|es|ing)\\b', 'remainder', 'quotient'],
+    },
+    {
+      id: 'fractions',
+      strand: 'Numbers',
+      name: 'Fractions',
+      keywords: ['fraction', 'numerator', 'denominator', 'tops?\\b', 'bottoms?\\b', 'halv', 'half\\b', 'quarter'],
+    },
+    {
+      id: 'decimals',
+      strand: 'Numbers',
+      name: 'Decimals',
+      keywords: ['decimal', '\\d*\\.\\d', 'tenths?\\b', 'hundredths?\\b'],
+    },
+    {
+      id: 'length',
+      strand: 'Measurement',
+      name: 'Length',
+      keywords: ['length', 'measur', 'perimeter', '(?:c|m|k)m\\b', 'met(?:re|er)s?\\b', 'ruler'],
+    },
   ],
 };
 

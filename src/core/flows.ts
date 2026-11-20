@@ -62,7 +62,7 @@ export async function summariseDifficulty(
   data: ClassData,
   group: Group,
 ): Promise<{ difficulty: string } | { failure: Failure }> {
-  const notes = groupNotes(data, group);
+  const notes = groupNotes(data, pack, group);
   if (notes.length === 0) return { difficulty: '' };
   const result = await runTask(ctx, difficultyPrompt(pack, group, notes, data.learners));
   if (result.status !== 'ok') return { failure: result };

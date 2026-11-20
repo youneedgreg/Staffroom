@@ -45,9 +45,40 @@ export function strugglingGroups(data: ClassData, pack: CurriculumPack, minSize 
   return groups.sort((a, b) => b.learners.length - a.learners.length);
 }
 
-/** The notes of the learners in a group, skipping empty ones. */
-export function groupNotes(data: ClassData, group: Group): string[] {
+function topicPattern(subStrand: SubStrand): RegExp | null {
+  const words = subStrand.keywords ?? [];
+  return words.length ? new RegExp(`\\b(?:${words.join('|')})`, 'i') : null;
+}
+
+/**
+ * The part of a note that is about one topic. Plain word matching, no model.
+ *
+ * A note covers the learner, not one topic ("treats a decimal point like a remainder. adds
+ * denominators"), and the on-device model would otherwise sum up a Fractions group from its
+ * decimal mistakes. So a note is split into sentences and:
+ *   - the sentences that name this topic are kept;
+ *   - a note that names only other topics is dropped;
+ *   - a note that names no topic at all is kept whole, since it may be about this one.
+ * A pack without keywords keeps every note whole.
+ */
+export function topicPart(note: string, subStrand: SubStrand, pack: CurriculumPack): string {
+  const text = note.trim();
+  const mine = topicPattern(subStrand);
+  if (!text || !mine) return text;
+  // Split after . ; ! ? followed by a space, so "0.5" stays whole.
+  const sentences = text.split(/(?<=[.;!?])\s+/).map((s) => s.trim()).filter(Boolean);
+  const kept = sentences.filter((s) => mine.test(s));
+  if (kept.length) return kept.join(' ').replace(/[.;]$/, '');
+  const others = pack.subStrands
+    .filter((s) => s.id !== subStrand.id)
+    .map(topicPattern)
+    .filter((p): p is RegExp => p !== null);
+  return sentences.some((s) => others.some((p) => p.test(s))) ? '' : text;
+}
+
+/** The notes of the learners in a group, cut to the part about the group's topic, skipping empty ones. */
+export function groupNotes(data: ClassData, pack: CurriculumPack, group: Group): string[] {
   return group.learners
-    .map((l) => data.assessments[l.id]?.note.trim() ?? '')
+    .map((l) => topicPart(data.assessments[l.id]?.note ?? '', group.subStrand, pack))
     .filter((note) => note.length > 0);
 }
