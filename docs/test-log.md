@@ -247,3 +247,14 @@ My Chrome was still on the build from before (a), with the old service worker, a
 | Live, after redeploying `ad5823f` | Fractions | 3 | 3 | "adding the tops and denominators, without employing a common denominator"; "adds the tops and bottoms when adding fractions"; "adding the tops and bottoms when adding fractions" |
 
 Each phrase took about 1.3 s after the first run of a session (the first took 3.3–3.8 s). Learner tasks sent to the cloud stayed at 0, and there were no console errors. Two phrases start with "add"/"adds" rather than "adding"; the teacher can edit the phrase before it's sent.
+
+## Fri 20 Nov 2026 — the README screenshot run
+
+**Setup:** the live site, built from `main` at `14ed110`, in my Chrome 157 (with the Claude extension, wifi on), run by Claude. Staffroom's stored data was cleared first, then the invented sample class loaded.
+
+- Remarks: 30 of 30 "Written on this laptop". The first 4 took about 25 s, including the cold start.
+- Fractions was the first group (10 learners). The difficulty phrase: "adding the numerator and denominator without considering a common denominator", on topic, in about 4 s.
+- The preview held 0 names. Adding ", like Faith" found 1 learner name and switched "Ask the cloud" off with the reason.
+- The plan with web sources was refused (the free-tier grounding limit). Route A gave a plan marked "No web sources" in about 18 s.
+- Parent notes: 10 of 10, in about 14 s.
+- Ledger: 41 on the laptop, 1 in the cloud, 1 not answered, 1,728 characters sent, failed 1 (the refusal), **0 learner tasks in the cloud**.
