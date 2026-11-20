@@ -1,7 +1,7 @@
 // Writes dist/sw.js: a service worker that keeps every built file on the laptop,
 // so Staffroom opens with no connection. No library is used.
 import { createHash } from 'node:crypto';
-import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 const dist = 'dist';
@@ -12,6 +12,23 @@ function walk(dir) {
     return statSync(path).isDirectory() ? walk(path) : [path];
   });
 }
+
+// The App Check debug token is for localhost only and must never reach the public build.
+// Read it from the env files Vite uses and fail the build if its value is anywhere in dist/.
+const debugTokens = ['.env', '.env.local', '.env.production', '.env.production.local']
+  .filter((f) => existsSync(f))
+  .flatMap((f) => readFileSync(f, 'utf8').split('\n'))
+  .map((line) => /^\s*VITE_APPCHECK_DEBUG_TOKEN\s*=\s*["']?([^"'\s]+)/.exec(line)?.[1])
+  .filter(Boolean);
+if (process.env.VITE_APPCHECK_DEBUG_TOKEN) debugTokens.push(process.env.VITE_APPCHECK_DEBUG_TOKEN);
+for (const path of walk(dist)) {
+  const text = readFileSync(path, 'latin1');
+  if (debugTokens.some((token) => text.includes(token))) {
+    console.error(`Build stopped: the App Check debug token is in ${path}. It must never be deployed.`);
+    process.exit(1);
+  }
+}
+console.log(`Debug token check: not in dist/ (${debugTokens.length} token${debugTokens.length === 1 ? '' : 's'} checked).`);
 
 const files = walk(dist)
   .map((path) => '/' + relative(dist, path).split('\\').join('/'))
