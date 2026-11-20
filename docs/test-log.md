@@ -128,3 +128,20 @@ The cloud model in the task-map caption was `gemini-3.5-flash-lite` throughout.
 **Pass:** both policy changes reached the open app through Remote Config's live updates, with no reload, and the learner tasks stayed `ONLY_ON_DEVICE` under both. The delay from publishing to the app changing wasn't timed, so there is no number for it.
 
 **Seen in the run:** under the strict policy the disabled "Ask the cloud" button still looks bright, so it reads as clickable (for the Day-7 design pass).
+
+## Fri 20 Nov 2026 — a browser with no on-device model, on the real engine (Day-4 polish)
+
+**Setup:** dev server, real Firebase engine, `feat/no-model-polish` (merged as PR #12), invented sample class. The browser was the Claude desktop app's built-in browser pane: Chromium 156, which has the `LanguageModel` API, but `LanguageModel.availability()` returned `unavailable`. That makes it a real browser with no model, not the simulated engine. One run each, so the times aren't measurements.
+
+| Screen | Action | Seen |
+|---|---|---|
+| Status bar | Page load | "not available in this browser", plus the new line: what stops, that nothing about a child is sent instead, and that the plan, the starter activity and plain words still work through the cloud |
+| Reports | Draft all remarks | "Stopped. 0 drafted." and "This browser has no on-device model, so this cannot run here. Learner data is never sent to the cloud instead." |
+| Support | Sum up the difficulty | The same sentence under step 1, plus "You can type the difficulty yourself in step 2."; nothing under "Ask the cloud" |
+| Support | What does Approaching Expectation mean here? (`PREFER_ON_DEVICE`) | Answered in 3.0 s; "In the cloud (this browser has no on-device model)" |
+| Self-test | Run the self-test | Remark, group summary and parent note: "Did not run", "Stopped, as designed", with the sentence under the table. Starter (`PREFER_IN_CLOUD`) and plain words (`PREFER_ON_DEVICE`): in the cloud, about 1.3 s each. Plan with web sources: sent and refused (HTTP 429, the free-tier grounding limit; Route A handles this on the Support screen) |
+| Privacy ledger | After all of the above | Learner tasks sent to the cloud **0**, ran on this laptop 0, ran in the cloud 3, sent and refused 1, characters sent 1,517, stopped (no on-device model) 5, failed 1 (the 429). No-model rows read "Stopped: this browser has no on-device model. Nothing was sent." |
+
+**Pass:** with no model, all 5 learner-task runs (remarks, the group summary, a parent note) stopped and sent nothing, and the curriculum tasks still worked through the cloud.
+
+**Not checked:** Safari and Firefox, which have no `LanguageModel` at all (Claude can only view Safari, not click in it). The engine reports `unavailable` for a missing API too, so they should look the same.
