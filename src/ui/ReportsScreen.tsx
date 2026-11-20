@@ -4,6 +4,7 @@ import { draftRemark, needsRemark } from '../core/flows';
 import type { RunContext } from '../core/runner';
 import type { ClassData, CurriculumPack, Learner, Remark } from '../core/types';
 import { offWhen } from './a11y';
+import { CloudIcon, LaptopIcon } from './icons';
 
 interface Props {
   classData: ClassData | null;
@@ -101,24 +102,27 @@ export function ReportsScreen({ classData, pack, ctx, remarks, saveRemarks }: Pr
   return (
     <section>
       <h2>Report remarks</h2>
-      <p>
-        Each remark is drafted from the levels and your note. This runs on this laptop only.
-        If this browser has no on-device model, Staffroom stops. It does not send a learner to the cloud instead.
-      </p>
-      <p className="row">
-        <button type="button" className="primary" {...offWhen(running, () => void draftAll())}>Draft all remarks</button>
-        {running && <button type="button" onClick={() => stopper.current?.abort()}>Stop</button>}
-        <button type="button" onClick={copyAll} disabled={written === 0}>Copy all</button>
-      </p>
-      {running && (
-        <p role="status">
-          Drafting {progress.done} of {progress.total}
-          <progress max={progress.total} value={progress.done} aria-label="Remarks drafted" />
+      <div className="step toolbar">
+        <p className="where laptop"><LaptopIcon />On this laptop</p>
+        <p>
+          Each remark is drafted from the levels and your note. This runs on this laptop only.
+          If this browser has no on-device model, Staffroom stops. It does not send a learner to the cloud instead.
         </p>
-      )}
-      {message && <p role="status" data-testid="batch-message">{message}</p>}
-      {problem && <p className="bad" role="alert" data-testid="batch-problem">{problem}</p>}
-      <p className="quiet" data-testid="written-count">{written} of {classData.learners.length} written.</p>
+        <p className="row">
+          <button type="button" className="primary" {...offWhen(running, () => void draftAll())}>Draft all remarks</button>
+          {running && <button type="button" onClick={() => stopper.current?.abort()}>Stop</button>}
+          <button type="button" onClick={copyAll} disabled={written === 0}>Copy all</button>
+        </p>
+        {running && (
+          <p role="status">
+            Drafting {progress.done} of {progress.total}
+            <progress max={progress.total} value={progress.done} aria-label="Remarks drafted" />
+          </p>
+        )}
+        {message && <p role="status" data-testid="batch-message">{message}</p>}
+        {problem && <p className="bad" role="alert" data-testid="batch-problem">{problem}</p>}
+        <p className="quiet" data-testid="written-count">{written} of {classData.learners.length} written.</p>
+      </div>
 
       <ol className="cards">
         {classData.learners.map((learner) => {
@@ -129,7 +133,7 @@ export function ReportsScreen({ classData, pack, ctx, remarks, saveRemarks }: Pr
             .map((s) => `${s.name} ${a!.levels[s.id]}`)
             .join(' · ');
           return (
-            <li key={learner.id} className="card">
+            <li key={learner.id} className={remark?.status === 'approved' ? 'card approved' : 'card'}>
               <h3>{learner.name || 'Unnamed learner'}</h3>
               <p className="quiet">{levels || 'No levels yet'}</p>
               {remark ? (
@@ -139,7 +143,10 @@ export function ReportsScreen({ classData, pack, ctx, remarks, saveRemarks }: Pr
                     <textarea rows={3} value={remark.text} onChange={(e) => edit(learner.id, e.target.value)} />
                   </label>
                   <p className="row small">
-                    <span className="badge">{SOURCE_TEXT[remark.source]}</span>
+                    <span className={remark.source === 'on_device' ? 'badge laptop' : 'badge cloud'}>
+                      {remark.source === 'on_device' ? <LaptopIcon /> : <CloudIcon />}
+                      {SOURCE_TEXT[remark.source]}
+                    </span>
                     <span>{remark.status === 'draft' ? 'Draft' : remark.status === 'edited' ? 'Edited by you' : 'Approved'}</span>
                     <label className="inline">
                       <input
