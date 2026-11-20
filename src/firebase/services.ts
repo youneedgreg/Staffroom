@@ -16,7 +16,7 @@ import { getAuth, signInAnonymously } from 'firebase/auth';
 import {
   addDoc,
   collection,
-  getDocs,
+  getDocsFromServer,
   initializeFirestore,
   limit,
   orderBy,
@@ -80,7 +80,9 @@ function planLibrary(db: Firestore, uid: () => string | undefined): PlanLibrary 
         orderBy('at', 'desc'),
         limit(10),
       );
-      const snapshot = await getDocs(q);
+      // From the server only: offline, the local cache would answer with an empty or old list
+      // and the screen would say no one has shared a plan. This rejects instead.
+      const snapshot = await getDocsFromServer(q);
       const me = uid();
       return snapshot.docs.map((d): SharedPlan => {
         const data = d.data();

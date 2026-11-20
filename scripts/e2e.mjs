@@ -376,6 +376,25 @@ try {
     await page2.waitForSelector('[data-testid="shared-plans-error"]');
     check('library down: the list says it could not be loaded', (await text(page2, 'shared-plans-error')).startsWith('The shared plans could not be loaded'));
     await context2.close();
+
+    // The judge's loop opens Support offline. The list must not claim no one has shared a plan,
+    // and must load once the connection comes back.
+    const context3 = await browser.newContext();
+    const page3 = await context3.newPage();
+    await page3.goto(`${BASE}/?engine=demo&library=demo`);
+    await page3.click('text=Load the invented sample class');
+    await context3.setOffline(true);
+    await page3.waitForFunction(() => !navigator.onLine);
+    await page3.click('a[href="#/support"]');
+    await page3.click('[data-testid="groups"] li >> nth=0 >> text=Plan support');
+    await page3.waitForSelector('[data-testid="shared-plans-offline"]');
+    check('library offline: it says shared plans need the internet', (await text(page3, 'shared-plans-offline')).startsWith('Shared plans need the internet'));
+    check('library offline: it never says no one has shared a plan', (await page3.locator('[data-testid="shared-plans-empty"]').count()) === 0);
+    await context3.setOffline(false);
+    await page3.waitForFunction(() => navigator.onLine);
+    await page3.waitForSelector('[data-testid="shared-plans-list"]');
+    check('library back online: the shared plans load on their own', (await page3.locator('[data-testid="shared-plans-list"] > li').count()) === 1);
+    await context3.close();
   }
 
   // 6. A slow cloud: no answer within the time limit. The text did leave, so the ledger counts it as sent.
