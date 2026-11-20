@@ -320,6 +320,41 @@ try {
     check('Route A ledger: both sends carry the same text', sent.length === 2 && new Set(sent).size === 1, `${sent.length} rows`);
     await context.close();
   }
+
+  // 6. A slow cloud: no answer within the time limit. The text did leave, so the ledger counts it as sent.
+  {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await page.goto(`${BASE}/?engine=demo&cloud=slow`);
+    await page.click('text=Load the invented sample class');
+    await page.click('a[href="#/support"]');
+    await page.click('[data-testid="groups"] li >> nth=0 >> text=Plan support');
+    await page.click('[data-testid="quick-lessonIdea-run"]');
+    await page.waitForSelector('[data-testid="quick-lessonIdea-problem"]');
+    check('slow cloud: the starter says the cloud did not answer and the question did leave',
+      (await text(page, 'quick-lessonIdea-problem')).includes("didn't answer within 30 seconds") &&
+      (await text(page, 'quick-lessonIdea-problem')).includes('The question did leave this laptop'));
+    check('slow cloud: the button is back, so the teacher can try again',
+      (await page.locator('[data-testid="quick-lessonIdea-run"]').isEnabled()));
+    await page.fill('[data-testid="outbound-free"]', 'adding the tops and the bottoms');
+    await page.click('[data-testid="ask"]');
+    await page.waitForSelector('[data-testid="support-problem"]');
+    check('slow cloud: the plan says the same, and Route A is not offered',
+      (await text(page, 'support-problem')).includes("didn't answer within 30 seconds") &&
+      (await page.locator('[data-testid="route-a"]').count()) === 0);
+    await page.click('a[href="#/ledger"]');
+    await page.waitForSelector('[data-testid="tile-refused"]');
+    check('slow cloud ledger: 2 sent and not answered, 0 answered, characters counted',
+      (await text(page, 'tile-refused')) === '2' && (await text(page, 'tile-in-cloud')) === '0' &&
+      Number(await text(page, 'tile-chars')) > 0);
+    const rows = await page.locator('main tbody tr').allInnerTexts();
+    check('slow cloud ledger: each row says no answer in time, and shows the text sent',
+      rows.length === 2 && rows.every((r) => r.includes('Sent to the cloud, no answer in time')) &&
+      (await page.locator('main tbody tr pre').count()) === 2);
+    check('slow cloud ledger: the tile reads "not answered"',
+      (await page.locator('.tile', { has: page.locator('[data-testid="tile-refused"]') }).innerText()).includes('Sent to the cloud, not answered'));
+    await context.close();
+  }
 } finally {
   await browser.close();
   preview.kill();

@@ -181,6 +181,30 @@ describe('runTask: the curriculum question', () => {
     expect(ranText(entry)).toBe('Sent to the cloud, refused');
   });
 
+  it('logs a question the cloud never answered in time as sent, with the exact text', async () => {
+    for (const spec of [planPrompt(pack, group, 'adding the tops and the bottoms'), lessonIdeaPrompt(pack, group.subStrand)]) {
+      const { ctx, ledger } = setup({ cloud: 'slow' });
+      const r = await runTask(ctx, spec);
+      expect(r).toMatchObject({ status: 'error', kind: 'timeout' });
+      if (r.status === 'error') expect(r.message).toContain("didn't answer within 30 seconds");
+      const entry = ledger[0]!;
+      expect(entry).toMatchObject({ outcome: 'error', source: 'in_cloud' });
+      expect(entry.sentText).toBe(`${spec.system}\n\n${spec.prompt}`);
+      expect(entry.sentChars).toBe(entry.sentText!.length);
+      expect(entry.note).toMatch(/^timeout: /);
+      expect(ranText(entry)).toBe('Sent to the cloud, no answer in time');
+      expect(summarise(ledger)).toMatchObject({ inCloud: 0, refusedInCloud: 1, errors: 1, charsSent: entry.sentChars });
+    }
+  });
+
+  it('never lets a slow cloud touch a learner task', async () => {
+    const { ctx, demo, ledger } = setup({ cloud: 'slow' });
+    const r = await runTask(ctx, remarkSpec());
+    expect(r.status).toBe('ok');
+    expect(demo.calls[0]?.mode).toBe('only_on_device');
+    expect(summarise(ledger)).toMatchObject({ onDevice: 1, charsSent: 0, learnerTasksInCloud: 0 });
+  });
+
   it('logs a cloud-first request the cloud refused before the device took over as sent', async () => {
     const { ctx, ledger } = setup({}, DEFAULT_SETTINGS, fallbackEngine(429));
     const spec = lessonIdeaPrompt(pack, group.subStrand);
