@@ -11,7 +11,7 @@ import type { TaskId } from './policy';
 import { LEVELS, type Assessment, type CurriculumPack, type Learner, type Level, type SubStrand } from './types';
 
 /** Bump when a prompt changes, so saved remarks are redrafted. */
-export const PROMPT_VERSION = 2;
+export const PROMPT_VERSION = 3;
 
 export interface PromptSpec {
   task: TaskId;
@@ -58,15 +58,32 @@ export const REMARK_SYSTEM =
   'You write end-of-term report remarks for a primary school class teacher in Kenya. ' +
   `Write exactly two sentences, 45 words at most, about ${NAME_TOKEN} in the third person. ` +
   'Never write "you" or "your". ' +
-  'Sentence one praises the strength given. Sentence two gives the next step given. ' +
+  'Sentence one praises the strength given, in the words given. Sentence two gives the next step given. ' +
   'Use the topic names exactly as given and never swap one operation for another. ' +
   "The teacher's note may describe a mistake: never praise it, use it only for the next step. " +
   'Use only the facts given. Be kind and specific. Plain British English. ' +
   'Do not use the level names or their initials. No lists, no quotation marks.';
 
+/** How sentence one may praise, set by the learner's best level, so the model can't overclaim. */
+const STRENGTH_WORDS: Record<Level, string> = {
+  EE: 'excellent work',
+  ME: 'secure work',
+  AE: 'growing confidence',
+  BE: 'effort',
+};
+
+/** Rotate a list by an amount taken from the learner id, so equal learners get different topics. */
+function rotate<T>(items: T[], seed: string): T[] {
+  if (items.length < 2) return items;
+  const n = parseInt(fnv1a(seed), 16) % items.length;
+  return [...items.slice(n), ...items.slice(0, n)];
+}
+
 /**
  * The strength and the next step are chosen here, from the levels, not by the model.
  * The small model picked them itself before and praised a topic the learner was behind in.
+ * When several topics share the best level, which two are praised depends on the learner, so a
+ * class of learners at the same level don't all get the same remark.
  */
 export function remarkFocus(pack: CurriculumPack, assessment: Assessment): { strength: string; nextStep: string } {
   const rated = pack.subStrands
@@ -77,15 +94,18 @@ export function remarkFocus(pack: CurriculumPack, assessment: Assessment): { str
   }
   const best = Math.min(...rated.map((t) => t.rank));
   const worst = Math.max(...rated.map((t) => t.rank));
-  const top = rated.filter((t) => t.rank === best).slice(0, 2).map((t) => t.name);
+  const tied = rotate(rated.filter((t) => t.rank === best).map((t) => t.name), assessment.learnerId);
+  const top = tied.slice(0, 2);
   const strength =
-    best === LEVELS.indexOf('BE') ? "effort, or a strength from the teacher's note" : top.join(' and ');
+    best === LEVELS.indexOf('BE')
+      ? "effort, or a strength from the teacher's note"
+      : `${STRENGTH_WORDS[LEVELS[best]!]} in ${top.join(' and ')}`;
   const nextStep =
     worst > best
       ? `more practice in ${rated.find((t) => t.rank === worst)!.name}`
       : best === LEVELS.indexOf('BE')
         ? `more practice in ${rated[0]!.name}`
-        : `harder problems in ${top[0]}`;
+        : `harder problems in ${tied[2] ?? top[0]}`;
   return { strength, nextStep };
 }
 
