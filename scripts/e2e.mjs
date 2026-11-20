@@ -129,6 +129,8 @@ try {
       firstNote.startsWith('Dear parent or guardian of ') && !/Mrs\.|regards|\[Teacher\]/i.test(firstNote), firstNote.split('\n')[0]);
     check('parent notes: the difficulty phrase from step 2 is added by Staffroom',
       firstNote.includes(`In class we are working on a common mistake in fractions: ${phrase}.`), firstNote);
+    check('parent notes: the teacher is asked to check each note',
+      (await text(page, 'notes-check')).startsWith('Check each note before you send it.'));
     check('parent notes: praise copied from the teacher\'s note opens Faith\'s note',
       firstNote.includes('Something I have noticed about Faith: neat work.'), firstNote);
     check('parent notes: the home activity is added in full',

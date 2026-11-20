@@ -401,6 +401,13 @@ function GroupPanel({ group, pack, classData, ctx, settings, online, device, sta
               <p role="alert" className="bad" data-testid="notes-problem">{state.problem}</p>
             )}
             {Object.keys(state.notes).length > 0 && (
+              <p className="small" data-testid="notes-check">
+                Check each note before you send it. The kind words are copied from your own note about the child, and
+                the on-device model can mistake a slip for a strength. The rest is your difficulty phrase and the home
+                activity, word for word.
+              </p>
+            )}
+            {Object.keys(state.notes).length > 0 && (
               <ul className="cards" data-testid="notes">
                 {group.learners
                   .filter((l) => state.notes[l.id] !== undefined)
