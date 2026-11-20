@@ -2,17 +2,29 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // The shared plan library. A plan is a curriculum question and the cloud's answer.
-    // It never holds learner data: the app builds the question from curriculum words
-    // and runs the roster guard on it before it is sent or shared.
+    // It never holds learner data: the app builds the question from curriculum words and runs
+    // the roster guard on the question and the answer before it is sent or shared.
+    // Only plans asked without web sources are shared: the grounding terms allow a grounded
+    // answer to be shown only to the person who asked, so a shared plan has no sources at all.
     match /plans/{planId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['packId', 'subStrandId', 'question', 'answer', 'at', 'uid'])
+        && request.resource.data.keys().hasAll(['packId', 'subStrandId', 'question', 'answer', 'at', 'uid'])
         && request.resource.data.uid == request.auth.uid
-        && request.resource.data.keys().hasOnly(['packId', 'subStrandId', 'question', 'answer', 'sources', 'at', 'uid'])
+        && request.resource.data.packId is string
+        && request.resource.data.packId.size() > 0
+        && request.resource.data.packId.size() <= 64
+        && request.resource.data.subStrandId is string
+        && request.resource.data.subStrandId.size() > 0
+        && request.resource.data.subStrandId.size() <= 64
         && request.resource.data.question is string
+        && request.resource.data.question.size() > 0
         && request.resource.data.question.size() < 2000
         && request.resource.data.answer is string
-        && request.resource.data.answer.size() < 8000;
+        && request.resource.data.answer.size() > 0
+        && request.resource.data.answer.size() < 8000
+        && request.resource.data.at is int;
       allow update, delete: if false;
     }
     match /{document=**} {

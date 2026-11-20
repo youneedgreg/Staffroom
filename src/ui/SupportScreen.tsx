@@ -10,7 +10,7 @@
  * asked whether to send the same previewed text again without web sources, and the answer is
  * labelled "No web sources". The Privacy ledger shows both sends.
  */
-import { useEffect, useMemo, useRef, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { runBatch, type BatchProgress } from '../core/batch';
 import { askPlan, summariseDifficulty, writeParentNote, type Failure } from '../core/flows';
 import { checkOutbound, describeHit } from '../core/guard';
@@ -29,7 +29,7 @@ import {
 import { runTask, type RunContext } from '../core/runner';
 import type { ClassData, CurriculumPack, Plan } from '../core/types';
 import type { DeviceStatus } from '../engine/engine';
-import type { PlanLibrary } from '../firebase/services';
+import { GROUNDED_SHARE_TEXT, sharePlan, type PlanLibrary, type SharedPlan } from '../core/library';
 
 interface Props {
   classData: ClassData | null;
@@ -39,7 +39,7 @@ interface Props {
   online: boolean;
   /** Whether this browser has an on-device model. Used to say why a "device first" task ran in the cloud. */
   device: DeviceStatus;
-  /** The shared plan library. Null when it is not available (simulated engine). Used on Day 5. */
+  /** The shared plan library. Null when it is not available (simulated engine without `&library=`). */
   library: PlanLibrary | null;
   plans: Plan[];
   savePlans: (update: (current: Plan[]) => Plan[]) => void;
@@ -104,7 +104,7 @@ export function failureText(f: Failure): string {
   return f.hits.map(describeHit).join(' ');
 }
 
-export function SupportScreen({ classData, pack, ctx, settings, online, device, plans, savePlans, memory, setMemory }: Props) {
+export function SupportScreen({ classData, pack, ctx, settings, online, device, library, plans, savePlans, memory, setMemory }: Props) {
   const { states, openId } = memory;
   const setOpenId = (id: string | null) => setMemory((m) => ({ ...m, openId: id }));
 
@@ -164,6 +164,8 @@ export function SupportScreen({ classData, pack, ctx, settings, online, device, 
           update={(patch) => update(open.subStrand.id, patch)}
           lastPlan={[...plans].reverse().find((p) => p.packId === pack.id && p.subStrandId === open.subStrand.id)}
           onPlan={(plan) => savePlans((current) => [...current, plan])}
+          library={library}
+          onShared={(id) => savePlans((current) => current.map((p) => (p.id === id ? { ...p, shared: true } : p)))}
         />
       )}
     </section>
@@ -182,9 +184,27 @@ interface PanelProps {
   update: (patch: Patch) => void;
   lastPlan?: Plan;
   onPlan: (plan: Plan) => void;
+  library: PlanLibrary | null;
+  onShared: (planId: string) => void;
 }
 
-function GroupPanel({ group, pack, classData, ctx, settings, online, device, state, update, lastPlan, onPlan }: PanelProps) {
+function GroupPanel({
+  group,
+  pack,
+  classData,
+  ctx,
+  settings,
+  online,
+  device,
+  state,
+  update,
+  lastPlan,
+  onPlan,
+  library,
+  onShared,
+}: PanelProps) {
+  // Bumped after a share, so the shared-plans list loads again.
+  const [libraryVersion, setLibraryVersion] = useState(0);
   // 2. The question, rebuilt and re-checked on every keystroke.
   const message = useMemo(() => buildQuestion(pack, group, state.free), [pack, group, state.free]);
   const verdict = useMemo(() => checkOutbound(message, ctx.guard), [message, ctx.guard]);
@@ -375,7 +395,22 @@ function GroupPanel({ group, pack, classData, ctx, settings, online, device, sta
 
       {lastPlan && parsed && (
         <>
-          <PlanPanel plan={lastPlan} parsed={parsed} />
+          <PlanPanel
+            plan={lastPlan}
+            parsed={parsed}
+            share={
+              library
+                ? async () => {
+                    const result = await sharePlan(ctx, library, lastPlan, online);
+                    if (result.status === 'ok') {
+                      onShared(lastPlan.id);
+                      setLibraryVersion((v) => v + 1);
+                    }
+                    return result.status === 'ok' ? null : result.message;
+                  }
+                : null
+            }
+          />
           <div className="step" data-testid="parent-notes">
             <h4>5. Notes to parents</h4>
             <p className="small">
@@ -430,6 +465,8 @@ function GroupPanel({ group, pack, classData, ctx, settings, online, device, sta
           </div>
         </>
       )}
+
+      {library && <SharedPlans library={library} pack={pack} group={group} version={libraryVersion} />}
 
       <QuickHelp
         specs={{
@@ -502,9 +539,26 @@ function QuickHelp({
   );
 }
 
-/** 7–8. The plan, then its web sources and Google's search suggestions. */
-function PlanPanel({ plan, parsed }: { plan: Plan; parsed: ParsedPlan }) {
+/** 7–8. The plan, then its web sources and Google's search suggestions, then sharing. */
+function PlanPanel({
+  plan,
+  parsed,
+  share,
+}: {
+  plan: Plan;
+  parsed: ParsedPlan;
+  /** Shares the plan; resolves to an error message, or null when it was shared. Null with no library. */
+  share: (() => Promise<string | null>) | null;
+}) {
   const plain = plan.grounded === false;
+  const [sharing, setSharing] = useState(false);
+  const [shareProblem, setShareProblem] = useState<string | null>(null);
+  const doShare = async () => {
+    if (!share) return;
+    setSharing(true);
+    setShareProblem(await share());
+    setSharing(false);
+  };
   return (
     <div className="step plan" data-testid="plan">
       <h4>4. The plan</h4>
@@ -551,6 +605,106 @@ function PlanPanel({ plan, parsed }: { plan: Plan; parsed: ParsedPlan }) {
       )}
       {plan.searchHtml && <SearchSuggestions html={plan.searchHtml} />}
       <p className="small">Asked at {new Date(plan.at).toLocaleTimeString()}. The Privacy ledger shows the exact text that was sent.</p>
+
+      {share && (
+        <div data-testid="share">
+          <h5>Share with other teachers</h5>
+          {!plain ? (
+            <p className="small" data-testid="share-grounded">{GROUNDED_SHARE_TEXT}</p>
+          ) : plan.shared ? (
+            <p role="status" data-testid="share-done">Shared with teachers using Staffroom.</p>
+          ) : (
+            <>
+              <p className="small">
+                Anyone using Staffroom can read a shared plan: the question above and this answer, nothing else. It
+                can't be changed or taken back from here.
+              </p>
+              <p className="row">
+                <button type="button" data-testid="share-plan" onClick={() => void doShare()} disabled={sharing}>
+                  {sharing ? 'Sharing…' : 'Share this plan'}
+                </button>
+              </p>
+            </>
+          )}
+          {shareProblem && (
+            <p role="alert" className="bad" data-testid="share-problem">{shareProblem}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+type LibraryState = { status: 'loading' } | { status: 'error' } | { status: 'ok'; plans: SharedPlan[] };
+
+/** Plans other teachers shared for this topic. Plain text only: no HTML from the library is rendered. */
+function SharedPlans({
+  library,
+  pack,
+  group,
+  version,
+}: {
+  library: PlanLibrary;
+  pack: CurriculumPack;
+  group: Group;
+  version: number;
+}) {
+  const [state, setState] = useState<LibraryState>({ status: 'loading' });
+  useEffect(() => {
+    let live = true;
+    setState({ status: 'loading' });
+    library.list(pack.id, group.subStrand.id).then(
+      (plans) => live && setState({ status: 'ok', plans }),
+      () => live && setState({ status: 'error' }),
+    );
+    return () => {
+      live = false;
+    };
+  }, [library, pack.id, group.subStrand.id, version]);
+
+  return (
+    <div className="step" data-testid="shared-plans">
+      <h4>Plans shared by other teachers</h4>
+      <p className="small">
+        Plans for {group.subStrand.name} that teachers using Staffroom chose to share, newest first. Each is a
+        question with no learner in it and the cloud's answer, asked without web sources.
+      </p>
+      {state.status === 'loading' && <p role="status">Loading shared plans…</p>}
+      {state.status === 'error' && (
+        <p className="small" data-testid="shared-plans-error">The shared plans could not be loaded. Check the connection and open the group again.</p>
+      )}
+      {state.status === 'ok' && state.plans.length === 0 && (
+        <p className="small" data-testid="shared-plans-empty">No one has shared a plan for this topic yet.</p>
+      )}
+      {state.status === 'ok' && state.plans.length > 0 && (
+        <ul className="cards" data-testid="shared-plans-list">
+          {state.plans.map((p) => {
+            const parsedShared = parsePlan(p.answer);
+            return (
+              <li key={p.id} className="card">
+                <p className="row">
+                  <span className="small">Asked {new Date(p.at).toLocaleDateString()}</span>
+                  {p.mine && <span className="badge" data-testid="shared-mine">You shared this</span>}
+                  <span className="badge warn-badge">No web sources</span>
+                </p>
+                <details>
+                  <summary>The question that was asked</summary>
+                  <p>{p.question}</p>
+                </details>
+                {parsedShared.activities.length > 0 ? (
+                  <>
+                    <ol>{parsedShared.activities.map((a, i) => <li key={i}>{a}</li>)}</ol>
+                    {parsedShared.check && <p><strong>Check after two weeks:</strong> {parsedShared.check}</p>}
+                    {parsedShared.home && <p><strong>At home:</strong> {parsedShared.home}</p>}
+                  </>
+                ) : (
+                  <pre>{p.answer}</pre>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

@@ -5,7 +5,8 @@
  * What goes to Firebase from this file:
  *   - App Check tokens and an anonymous sign-in. No learner data.
  *   - Remote Config reads. No learner data.
- *   - Shared plans: the curriculum question and the cloud's answer. No learner data.
+ *   - Shared plans: the curriculum question and the cloud's answer, only for plans asked
+ *     without web sources. No learner data. See `src/core/library.ts`.
  * Learner data is only ever read by `src/store/store.ts`, which has no network code.
  */
 import { initializeApp, type FirebaseApp } from 'firebase/app';
@@ -26,7 +27,7 @@ import {
 } from 'firebase/firestore';
 import { fetchAndActivate, getRemoteConfig, getValue, onConfigUpdate, activate, type RemoteConfig } from 'firebase/remote-config';
 import { DEFAULT_SETTINGS, parseSettings, RC_KEYS, type Settings } from '../core/policy';
-import type { Plan } from '../core/types';
+import type { PlanLibrary, SharedPlan } from '../core/library';
 import type { Engine } from '../engine/engine';
 import { FirebaseEngine } from '../engine/firebase';
 
@@ -34,12 +35,6 @@ const env = import.meta.env;
 
 export function hasFirebaseConfig(): boolean {
   return Boolean(env.VITE_FIREBASE_API_KEY && env.VITE_FIREBASE_PROJECT_ID && env.VITE_FIREBASE_APP_ID);
-}
-
-export interface PlanLibrary {
-  /** Share a plan with colleagues. It holds a curriculum question and an answer, nothing else. */
-  share(plan: Plan): Promise<void>;
-  list(packId: string, subStrandId: string): Promise<Plan[]>;
 }
 
 export interface Services {
@@ -62,14 +57,16 @@ function planLibrary(db: Firestore, uid: () => string | undefined): PlanLibrary 
   const plans = collection(db, 'plans');
   return {
     async share(plan) {
+      const me = uid();
+      if (!me) throw new Error('not signed in');
+      // Exactly the fields the Firestore rules allow. No sources: grounded plans are never shared.
       await addDoc(plans, {
         packId: plan.packId,
         subStrandId: plan.subStrandId,
         question: plan.question,
         answer: plan.answer,
-        sources: plan.sources,
         at: plan.at,
-        uid: uid() ?? null,
+        uid: me,
       });
     },
     async list(packId, subStrandId) {
@@ -81,7 +78,19 @@ function planLibrary(db: Firestore, uid: () => string | undefined): PlanLibrary 
         limit(10),
       );
       const snapshot = await getDocs(q);
-      return snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Plan, 'id'>) }));
+      const me = uid();
+      return snapshot.docs.map((d): SharedPlan => {
+        const data = d.data();
+        return {
+          id: d.id,
+          packId: String(data.packId),
+          subStrandId: String(data.subStrandId),
+          question: String(data.question),
+          answer: String(data.answer),
+          at: Number(data.at),
+          mine: Boolean(me) && data.uid === me,
+        };
+      });
     },
   };
 }

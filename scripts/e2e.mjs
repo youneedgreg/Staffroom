@@ -294,7 +294,7 @@ try {
   {
     const context = await browser.newContext();
     const page = await context.newPage();
-    await page.goto(`${BASE}/?engine=demo&grounding=refused`);
+    await page.goto(`${BASE}/?engine=demo&grounding=refused&library=demo`);
     await page.click('text=Load the invented sample class');
     await page.click('a[href="#/support"]');
     await page.click('[data-testid="groups"] li >> nth=0 >> text=Plan support');
@@ -326,7 +326,56 @@ try {
       (await text(page, 'tile-refused')) === '1' && (await text(page, 'tile-in-cloud')) === '1' && (await text(page, 'tile-learner-cloud')) === '0');
     const sent = await page.locator('main tbody tr pre').allTextContents();
     check('Route A ledger: both sends carry the same text', sent.length === 2 && new Set(sent).size === 1, `${sent.length} rows`);
+
+    // Day 5: the plain plan can be shared. The library list shows it as mine, next to a colleague's.
+    await page.click('a[href="#/support"]');
+    await page.waitForSelector('[data-testid="shared-plans-list"]');
+    check('library: a colleague\'s plan is listed before sharing', (await page.locator('[data-testid="shared-plans-list"] > li').count()) === 1);
+    await page.click('[data-testid="share-plan"]');
+    await page.waitForSelector('[data-testid="share-done"]');
+    check('library: the plain plan says it was shared', (await text(page, 'share-done')).startsWith('Shared with teachers using Staffroom'));
+    await page.waitForSelector('[data-testid="shared-mine"]');
+    check('library: the list now shows two plans, one marked as mine',
+      (await page.locator('[data-testid="shared-plans-list"] > li').count()) === 2 && (await page.locator('[data-testid="shared-mine"]').count()) === 1);
+    await page.click('a[href="#/ledger"]');
+    await page.waitForSelector('main tbody tr');
+    const rows = await page.locator('main tbody tr').allTextContents();
+    const shareRow = rows.find((r) => r.includes('Share a plan with other teachers')) ?? '';
+    check('library ledger: the share is a row of its own, saved to the library',
+      rows.length === 3 && shareRow.includes('Shared plan library') && shareRow.includes('Saved to the shared plan library'), shareRow);
+    const sentNow = await page.locator('main tbody tr pre').allTextContents();
+    check('library ledger: the shared text is the question and the plan', sentNow.some((t) => t.startsWith(sent[0]) && t.includes('Activities')));
+    check('library ledger: still 0 learner tasks in the cloud', (await text(page, 'tile-learner-cloud')) === '0');
+    await page.click('a[href="#/support"]');
+    await page.waitForSelector('[data-testid="share-done"]');
+    check('library: back on Support, the plan still shows as shared', (await page.locator('[data-testid="share-plan"]').count()) === 0);
     await context.close();
+  }
+
+  // 5b. The library with a grounded plan: no share button, and the reason. Then a library that is down.
+  {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await page.goto(`${BASE}/?engine=demo&library=demo`);
+    await page.click('text=Load the invented sample class');
+    await page.click('a[href="#/support"]');
+    await page.click('[data-testid="groups"] li >> nth=0 >> text=Plan support');
+    await page.fill('[data-testid="outbound-free"]', 'adding the tops and the bottoms');
+    await page.click('[data-testid="ask"]');
+    await page.waitForSelector('[data-testid="plan"]');
+    check('library: a grounded plan has no share button', (await page.locator('[data-testid="share-plan"]').count()) === 0);
+    check('library: a grounded plan says why it can\'t be shared', (await text(page, 'share-grounded')).includes("under Google's terms"));
+    await context.close();
+
+    const context2 = await browser.newContext();
+    const page2 = await context2.newPage();
+    await page2.goto(`${BASE}/?engine=demo&library=down`);
+    await page2.click('text=Load the invented sample class');
+    await page2.click('a[href="#/support"]');
+    await page2.click('[data-testid="groups"] li >> nth=0 >> text=Plan support');
+    await page2.waitForSelector('[data-testid="shared-plans-error"]');
+    check('library down: the list says it could not be loaded', (await text(page2, 'shared-plans-error')).startsWith('The shared plans could not be loaded'));
+    await context2.close();
   }
 
   // 6. A slow cloud: no answer within the time limit. The text did leave, so the ledger counts it as sent.

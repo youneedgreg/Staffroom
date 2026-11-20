@@ -2,7 +2,7 @@
 import { DEFAULT_SETTINGS, type Settings } from '../core/policy';
 import { DemoEngine } from '../engine/demo';
 import type { DeviceStatus, Engine } from '../engine/engine';
-import type { PlanLibrary } from '../firebase/services';
+import { demoLibrary, type PlanLibrary } from '../core/library';
 import { browserStore, Repo, type AppData } from '../store/store';
 
 export interface Boot {
@@ -26,6 +26,7 @@ export async function boot(): Promise<Boot> {
   // `&device=unavailable` and `&offline=1` let the test check both failure paths.
   // `&grounding=refused` turns down grounded plans with HTTP 429, as the free tier does (Route A).
   // `&cloud=slow` leaves every cloud request unanswered until the 30-second limit.
+  // `&library=demo` adds an in-memory plan library; `&library=down` makes it fail.
   const forced = params.get('engine') === 'demo';
   const { hasFirebaseConfig, startFirebase } = await import('../firebase/services');
   if (forced || !hasFirebaseConfig()) {
@@ -42,7 +43,7 @@ export async function boot(): Promise<Boot> {
       engine,
       settings: { ...DEFAULT_SETTINGS, policy },
       watchSettings: () => () => undefined,
-      plans: null,
+      plans: params.get('library') ? demoLibrary(params.get('library') === 'down') : null,
       simulatedReason: forced
         ? 'Simulated engine: asked for in the address bar.'
         : 'Simulated engine: no Firebase settings found. Copy .env.example to .env.local and fill it in.',

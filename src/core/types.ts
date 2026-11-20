@@ -77,5 +77,7 @@ export interface Plan {
    * refused (Route A). Missing on plans saved before Day 3, which were all grounded requests.
    */
   grounded?: boolean;
+  /** True once this plan was shared to the plan library. */
+  shared?: boolean;
   at: number;
 }
