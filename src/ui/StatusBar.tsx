@@ -64,7 +64,7 @@ export function StatusBar({ engine, simulatedReason, device, online, settings, l
         </div>
       </dl>
       {device === 'unavailable' && (
-        <p data-testid="no-model-note">
+        <p className="notice" data-testid="no-model-note">
           This browser has no on-device model. Report remarks, the group summary and parent notes stop here, and
           nothing about a child is sent to the cloud instead.{' '}
           {settings.policy === 'strict'

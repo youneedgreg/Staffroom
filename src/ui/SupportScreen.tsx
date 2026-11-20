@@ -114,7 +114,7 @@ export function SupportScreen({ classData, pack, ctx, settings, online, device, 
     return (
       <section>
         <h2>Support</h2>
-        <p>Add your class first. <a href="#/class">Go to Class</a>.</p>
+        <p className="step empty-note">Add your class first. <a href="#/class">Go to Class</a>.</p>
       </section>
     );
   }
