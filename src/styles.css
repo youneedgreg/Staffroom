@@ -241,3 +241,8 @@ h5 { font-size: 0.95rem; margin: 0.75rem 0 0.25rem; }
 .about .scroll { background: var(--paper); border: 1px solid var(--hair); border-radius: var(--radius); padding: 0 1rem 0.5rem; }
 .about ul { padding-left: 1.25rem; }
 .about ul li { margin: 0.35rem 0; }
+
+/* Empty and stopped states: a plain card, so they read as part of the page, not as leftover text. */
+.empty-note { max-width: 40rem; margin-top: 0.75rem; }
+.notice { background: var(--paper); border: 1px solid var(--hair); border-left: 5px solid var(--laptop); border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 0.75rem 1rem; max-width: 52rem; }
