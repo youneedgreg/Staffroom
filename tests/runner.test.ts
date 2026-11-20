@@ -89,6 +89,7 @@ describe('runTask: learner data', () => {
       run: async (): Promise<EngineResult> => ({ text: 'leaked', source: 'in_cloud' }),
       deviceStatus: async () => 'available',
       prepareDevice: async () => undefined,
+      warmDevice: async () => undefined,
     };
     const { ctx, ledger } = setup({}, DEFAULT_SETTINGS, liar);
     const r = await runTask(ctx, remarkSpec());
@@ -128,6 +129,7 @@ function fallbackEngine(status: number): Engine {
     }),
     deviceStatus: async () => 'available',
     prepareDevice: async () => undefined,
+      warmDevice: async () => undefined,
   };
 }
 
@@ -141,6 +143,7 @@ function refusingEngine(status: number): Engine {
     },
     deviceStatus: async () => 'available',
     prepareDevice: async () => undefined,
+      warmDevice: async () => undefined,
   };
 }
 

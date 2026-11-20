@@ -154,3 +154,39 @@ describe('FirebaseEngine: PREFER_IN_CLOUD falling back to the device', () => {
     expect(result.refusedBeforeFallback).toEqual({ status: 503 });
   });
 });
+
+describe('FirebaseEngine: warming the on-device model', () => {
+  const stub = (status: string, create = vi.fn(async () => ({ destroy: vi.fn() }))) => {
+    vi.stubGlobal('LanguageModel', { availability: async () => status, create });
+    return create;
+  };
+
+  it('creates one session and closes it, however often it is asked', async () => {
+    const destroy = vi.fn();
+    const create = stub('available', vi.fn(async () => ({ destroy })));
+    const e = engine();
+    await Promise.all([e.warmDevice(), e.warmDevice()]);
+    await e.warmDevice();
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(destroy).toHaveBeenCalledTimes(1);
+    // The same text-only options as a real task, and no prompt.
+    expect(create.mock.calls[0]).toMatchObject([{ expectedInputs: [{ type: 'text', languages: ['en'] }] }]);
+  });
+
+  it('does nothing until the model is ready, then warms it', async () => {
+    const e = engine();
+    const create = stub('downloadable');
+    await e.warmDevice();
+    expect(create).not.toHaveBeenCalled();
+    stub('available', create);
+    await e.warmDevice();
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it('never throws, with no model API or a failing one', async () => {
+    vi.stubGlobal('LanguageModel', undefined);
+    await expect(engine().warmDevice()).resolves.toBeUndefined();
+    stub('available', vi.fn(async () => { throw new Error('no memory'); }));
+    await expect(engine().warmDevice()).resolves.toBeUndefined();
+  });
+});

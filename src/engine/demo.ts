@@ -112,4 +112,7 @@ export class DemoEngine implements Engine {
     onProgress(1);
     this.options.device = 'available';
   }
+
+  /** No model to load. */
+  async warmDevice(): Promise<void> {}
 }

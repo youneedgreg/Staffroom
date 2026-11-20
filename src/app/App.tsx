@@ -63,6 +63,10 @@ export function App({ boot }: { boot: Boot }) {
     void engine.deviceStatus().then(setDevice);
   }, [engine]);
   useEffect(refreshDevice, [refreshDevice]);
+  // Load the on-device model in the background as soon as it is ready, here or after a download.
+  useEffect(() => {
+    if (device === 'available') void engine.warmDevice();
+  }, [device, engine]);
 
   const saveClass = useCallback(
     (next: ClassData | null) => {

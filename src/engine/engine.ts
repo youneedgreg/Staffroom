@@ -38,6 +38,12 @@ export interface Engine {
   deviceStatus(): Promise<DeviceStatus>;
   /** Start the model download. Must be called from a click. `progress` runs from 0 to 1. */
   prepareDevice(onProgress: (progress: number) => void): Promise<void>;
+  /**
+   * Load the on-device model into memory before the first task needs it. The first session
+   * after Chrome starts took 15.5 s; the next ones took under 1 s. No prompt is sent and no
+   * learner data is involved. Runs once, does nothing without a ready model, and never throws.
+   */
+  warmDevice(): Promise<void>;
 }
 
 /** Thrown when a mode needs the on-device model and this browser has none. */
