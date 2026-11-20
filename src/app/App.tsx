@@ -5,6 +5,7 @@ import type { Settings } from '../core/policy';
 import type { RunContext } from '../core/runner';
 import type { ClassData, Plan, Remark } from '../core/types';
 import type { DeviceStatus } from '../engine/engine';
+import { AboutScreen } from '../ui/AboutScreen';
 import { ClassScreen } from '../ui/ClassScreen';
 import { LedgerScreen } from '../ui/LedgerScreen';
 import { ReportsScreen } from '../ui/ReportsScreen';
@@ -19,6 +20,7 @@ const TABS = [
   { id: 'support', label: 'Support' },
   { id: 'ledger', label: 'Privacy ledger' },
   { id: 'selftest', label: 'Self-test' },
+  { id: 'about', label: 'About' },
 ] as const;
 type TabId = (typeof TABS)[number]['id'];
 
@@ -183,6 +185,7 @@ export function App({ boot }: { boot: Boot }) {
         )}
         {tab === 'ledger' && <LedgerScreen ledger={ledger} onClear={clearLedger} />}
         {tab === 'selftest' && <SelfTestScreen engine={engine} settings={settings} record={record} />}
+        {tab === 'about' && <AboutScreen settings={settings} />}
       </main>
     </>
   );

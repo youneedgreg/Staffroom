@@ -258,6 +258,9 @@ try {
     check('task map, strict policy: the plan is switched off', strict.plan === 'switched off', strict.plan);
     check('task map, strict policy: everything else is ONLY_ON_DEVICE',
       Object.entries(strict).filter(([t]) => t !== 'plan').every(([, m]) => m === 'ONLY_ON_DEVICE'), JSON.stringify(strict));
+    await page.click('a[href="#/about"]');
+    await page.waitForSelector('[data-testid="about"]');
+    check('About, strict policy: its table also has the plan switched off', (await text(page, 'about-task-plan-mode')) === 'switched off');
     await context.close();
 
     // The Day-4 gate in the simulated engine: with no connection the starter still answers, on the laptop.
@@ -429,6 +432,48 @@ try {
       (await page.locator('main tbody tr pre').count()) === 2);
     check('slow cloud ledger: the tile reads "not answered"',
       (await page.locator('.tile', { has: page.locator('[data-testid="tile-refused"]') }).innerText()).includes('Sent to the cloud, not answered'));
+    await context.close();
+  }
+
+  // 7. The About page: the rule, the nine steps, the live mode table, limits, privacy, credits, AI note.
+  {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await page.goto(`${BASE}/?engine=demo`);
+    await page.click('a[href="#/about"]');
+    await page.waitForSelector('[data-testid="about"]');
+    check('About: the tab is marked as the current page',
+      (await page.getAttribute('a[href="#/about"]', 'aria-current')) === 'page');
+    check('About: the rule says anything about a child stays on this laptop',
+      (await text(page, 'about-rule')).includes('Anything about a child stays on this laptop'));
+    check('About: nine steps', (await page.locator('[data-testid="about-steps"] > li').count()) === 9);
+    check('About: step 6 says plans come without web sources on the free tier',
+      (await page.locator('[data-testid="about-steps"] > li >> nth=5').innerText()).includes('No web sources'));
+    const modes = await page.evaluate(() =>
+      Object.fromEntries([...document.querySelectorAll('[data-testid^="about-task-"][data-testid$="-mode"]')]
+        .map((e) => [e.dataset.testid.slice(11, -5), e.textContent])));
+    check('About: the four learner tasks are ONLY_ON_DEVICE',
+      ['remark', 'difficulty', 'marksheet', 'personalise'].every((t) => modes[t] === 'ONLY_ON_DEVICE'), JSON.stringify(modes));
+    check('About: the plan is ONLY_IN_CLOUD', modes.plan === 'ONLY_IN_CLOUD', modes.plan);
+    await page.click('[data-testid="task-map"] summary');
+    const bar = await page.evaluate(() =>
+      Object.fromEntries([...document.querySelectorAll('[data-testid^="task-"][data-testid$="-mode"]')]
+        .map((e) => [e.dataset.testid.slice(5, -5), e.textContent])));
+    check('About: its table matches the status bar', JSON.stringify(bar) === JSON.stringify(modes));
+    const limits = await text(page, 'about-limits');
+    check('About: the limits name desktop Chrome, nicknames, no encryption and drafts',
+      ['Desktop Chrome only', 'nickname', 'not encrypted', 'draft'].every((w) => limits.includes(w)));
+    const all = (await page.innerText('[data-testid="about"]')).toLowerCase();
+    check('About: no claim of "secure", "anonymous", "compliant" or "guaranteed"',
+      !/\bsecure\b|anonymous|compliant|guaranteed/.test(all));
+    check('About: credits name the maker and link to the source code',
+      (await text(page, 'about-credits')).includes('Made by Gregory Temwa Odete') &&
+      (await page.getAttribute('[data-testid="about-credits"] a', 'href')) === 'https://github.com/youneedgreg/Staffroom');
+    check('About: the AI note names Claude', (await text(page, 'about-ai')).includes('Claude (Anthropic)'));
+    await page.click('[data-testid="about-steps"] a[href="#/class"]');
+    await page.waitForSelector('[data-testid="about"]', { state: 'detached' });
+    check('About: a step link opens its screen',
+      (await page.getAttribute('nav a[href="#/class"]', 'aria-current')) === 'page');
     await context.close();
   }
 } finally {
