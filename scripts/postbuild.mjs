@@ -43,7 +43,13 @@ const CACHE = 'staffroom-${version}';
 const FILES = ${JSON.stringify(['/', ...files])};
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(FILES)).then(() => self.skipWaiting()));
+  // cache: 'reload' fetches every file from the server, never from the browser's own cache,
+  // so a new version can't be stored with an older index.html.
+  event.waitUntil(
+    caches.open(CACHE)
+      .then((cache) => cache.addAll(FILES.map((file) => new Request(file, { cache: 'reload' }))))
+      .then(() => self.skipWaiting()),
+  );
 });
 
 self.addEventListener('activate', (event) => {
