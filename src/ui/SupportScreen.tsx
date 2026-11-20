@@ -30,6 +30,7 @@ import { runTask, type RunContext } from '../core/runner';
 import type { ClassData, CurriculumPack, Plan } from '../core/types';
 import type { DeviceStatus } from '../engine/engine';
 import { GROUNDED_SHARE_TEXT, sharePlan, type PlanLibrary, type SharedPlan } from '../core/library';
+import { focusSoon, offWhen } from './a11y';
 
 interface Props {
   classData: ClassData | null;
@@ -225,6 +226,8 @@ function GroupPanel({
       });
       return;
     }
+    // The phrase is the next thing to read and edit.
+    if (result.difficulty) focusSoon('[data-testid="outbound-free"]');
     update({
       busy: undefined,
       free: result.difficulty,
@@ -252,9 +255,11 @@ function GroupPanel({
       const f = result.failure;
       const refused = search && f.status === 'error' && f.kind === 'refused';
       update({ busy: undefined, problem: failureText(f), problemAt: 'ask', offerPlain: refused });
+      if (refused) focusSoon('[data-testid="route-a"]');
       return;
     }
     onPlan(result.plan);
+    focusSoon('[data-testid="plan"] h4');
     update({ busy: undefined, notes: {}, progress: undefined });
   };
 
@@ -302,7 +307,7 @@ function GroupPanel({
         <h4>1. What do they find hard?</h4>
         <p className="small">Staffroom reads your notes on these learners and sums them up in one phrase. This runs on this laptop only.</p>
         <p className="row">
-          <button type="button" onClick={sumUp} disabled={busy}>
+          <button type="button" {...offWhen(busy, () => void sumUp())}>
             {state.busy === 'summing' ? 'Summing up…' : 'Sum up the difficulty'}
           </button>
         </p>
@@ -354,8 +359,7 @@ function GroupPanel({
             type="button"
             className="primary"
             data-testid="ask"
-            onClick={() => ask(true)}
-            disabled={busy || blockedBecause !== null}
+            {...offWhen(busy || blockedBecause !== null, () => void ask(true))}
             aria-describedby={blockedBecause ? 'ask-reason' : undefined}
           >
             {state.busy === 'asking' ? 'Asking…' : 'Ask the cloud'}
@@ -376,13 +380,12 @@ function GroupPanel({
             <button
               type="button"
               data-testid="ask-plain"
-              onClick={() => ask(false)}
-              disabled={busy || blockedBecause !== null}
+              {...offWhen(busy || blockedBecause !== null, () => void ask(false))}
               aria-describedby={blockedBecause ? 'ask-reason' : undefined}
             >
               Ask without web sources
             </button>
-            <button type="button" onClick={() => update({ offerPlain: false, problem: undefined })} disabled={busy}>
+            <button type="button" {...offWhen(busy, () => update({ offerPlain: false, problem: undefined }))}>
               Not now
             </button>
           </p>
@@ -418,7 +421,7 @@ function GroupPanel({
               This runs on this laptop only. Names are added by Staffroom, never given to the model.
             </p>
             <p className="row">
-              <button type="button" className="primary" data-testid="write-notes" onClick={writeNotes} disabled={busy}>
+              <button type="button" className="primary" data-testid="write-notes" {...offWhen(busy, () => void writeNotes())}>
                 {state.busy === 'writing' ? 'Writing…' : `Write the parent notes (${group.learners.length})`}
               </button>
               {state.busy === 'writing' && (
@@ -518,7 +521,7 @@ function QuickHelp({
           return (
             <div key={id} className="card" data-testid={`quick-${id}`}>
               <p className="row">
-                <button type="button" data-testid={`quick-${id}-run`} onClick={() => void run(id, spec)} disabled={r?.busy}>
+                <button type="button" data-testid={`quick-${id}-run`} {...offWhen(Boolean(r?.busy), () => void run(id, spec))}>
                   {r?.busy ? 'Working…' : labels[id]}
                 </button>
               </p>
@@ -556,8 +559,11 @@ function PlanPanel({
   const doShare = async () => {
     if (!share) return;
     setSharing(true);
-    setShareProblem(await share());
+    const problem = await share();
+    setShareProblem(problem);
     setSharing(false);
+    // The button is replaced by "Shared with teachers…": move focus there, not to the page.
+    if (!problem) focusSoon('[data-testid="share-done"]');
   };
   return (
     <div className="step plan" data-testid="plan">
@@ -620,7 +626,7 @@ function PlanPanel({
                 can't be changed or taken back from here.
               </p>
               <p className="row">
-                <button type="button" data-testid="share-plan" onClick={() => void doShare()} disabled={sharing}>
+                <button type="button" data-testid="share-plan" {...offWhen(sharing, () => void doShare())}>
                   {sharing ? 'Sharing…' : 'Share this plan'}
                 </button>
               </p>

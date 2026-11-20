@@ -46,7 +46,12 @@ button, select, input, textarea { font: inherit; color: inherit; }
 button { min-height: 44px; padding: 0.4rem 0.9rem; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); cursor: pointer; }
 button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 600; }
 button.danger { color: var(--bad); border-color: var(--bad); }
-button:disabled { opacity: 0.55; cursor: not-allowed; }
+/* Switched off: plainly greyed and dashed, so it never reads as clickable. aria-disabled keeps focus on it. */
+button:disabled, button[aria-disabled="true"] {
+  background: var(--soft); color: var(--line); border: 1px dashed var(--line); font-weight: 400; cursor: not-allowed;
+}
+/* Headings and panels that take focus only so a screen reader starts there. */
+main:focus, h2[tabindex="-1"]:focus, h4[tabindex="-1"]:focus { outline: none; }
 input, select, textarea { border: 1px solid var(--line); border-radius: 4px; padding: 0.35rem 0.5rem; background: var(--paper); min-height: 40px; }
 textarea { width: 100%; }
 input.note { min-width: 18rem; width: 100%; }

@@ -476,6 +476,74 @@ try {
       (await page.getAttribute('nav a[href="#/class"]', 'aria-current')) === 'page');
     await context.close();
   }
+
+  // 8. Keyboard only: Enter on each button of the loop, and where focus lands afterwards.
+  //    Focus must never fall to the page body, or a keyboard or screen-reader user loses their place.
+  {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    const focus = () => page.evaluate(() => {
+      const el = document.activeElement;
+      if (!el || el === document.body) return 'BODY';
+      return el.getAttribute('data-testid') || `${el.tagName.toLowerCase()}:${(el.textContent || '').trim().slice(0, 40)}`;
+    });
+    const settle = () => page.waitForTimeout(150);
+    const press = async (selector) => { await page.focus(selector); await page.keyboard.press('Enter'); };
+    await page.goto(`${BASE}/?engine=demo&grounding=refused&library=demo`);
+    await page.waitForSelector('nav a[href="#/class"]');
+    await page.keyboard.press('Tab');
+    check('keyboard: the first Tab is the skip link', (await focus()) === 'a:Skip to the page');
+    await press('text=Load the invented sample class');
+    await page.waitForSelector('main tbody tr');
+    await settle();
+    check('keyboard: loading the class moves focus to its heading', (await focus()).startsWith('h2:Grade 5 East'), await focus());
+    await press('nav a[href="#/reports"]');
+    await settle();
+    check('keyboard: a new tab moves focus to its heading', (await focus()) === 'h2:Report remarks', await focus());
+    await press('text=Draft all remarks');
+    check('keyboard: "Draft all remarks" keeps focus while it runs',
+      (await focus()) === 'button:Draft all remarks' && (await page.getAttribute('text=Draft all remarks', 'aria-disabled')) === 'true');
+    await page.waitForSelector('[data-testid="batch-message"]');
+    await press('nav a[href="#/support"]');
+    await page.waitForSelector('[data-testid="groups"] li');
+    await press('[data-testid="groups"] li >> nth=0 >> text=Plan support');
+    await page.waitForSelector('[data-testid="outbound"]');
+    await press('text=Sum up the difficulty');
+    await page.waitForFunction(() => document.querySelector('[data-testid="outbound-free"]')?.value !== '');
+    await settle();
+    check('keyboard: summing up moves focus to the phrase', (await focus()) === 'outbound-free', await focus());
+    await press('[data-testid="ask"]');
+    await page.waitForSelector('[data-testid="route-a"]');
+    await settle();
+    check('keyboard: a refused ask moves focus to the Route A offer', (await focus()) === 'route-a', await focus());
+    await press('[data-testid="ask-plain"]');
+    await page.waitForSelector('[data-testid="plan"]');
+    await settle();
+    check('keyboard: the plan arriving moves focus to its heading', (await focus()) === 'h4:4. The plan', await focus());
+    await press('[data-testid="write-notes"]');
+    check('keyboard: "Write the parent notes" keeps focus while it runs', (await focus()) === 'write-notes');
+    await page.waitForFunction(() => document.querySelector('[data-testid="notes-progress"]')?.textContent?.includes('notes written'));
+    await press('[data-testid="share-plan"]');
+    await page.waitForSelector('[data-testid="share-done"]');
+    await settle();
+    check('keyboard: sharing moves focus to "Shared with teachers"', (await focus()) === 'share-done', await focus());
+    await page.focus('[data-testid="outbound-free"]');
+    await page.keyboard.press('End');
+    await page.keyboard.type(' like Faith');
+    for (let i = 0; i < 6 && (await focus()) !== 'ask'; i++) await page.keyboard.press('Tab');
+    check('keyboard: the switched-off "Ask the cloud" still takes focus', (await focus()) === 'ask', await focus());
+    check('keyboard: it is marked switched off and points to its reason',
+      (await page.getAttribute('[data-testid="ask"]', 'aria-disabled')) === 'true' &&
+      (await page.getAttribute('[data-testid="ask"]', 'aria-describedby')) === 'ask-reason');
+    const before = await text(page, 'plan');
+    await page.keyboard.press('Enter');
+    await settle();
+    check('keyboard: Enter on it sends nothing', (await text(page, 'plan')) === before && (await focus()) === 'ask');
+    await press('nav a[href="#/ledger"]');
+    await page.waitForSelector('[data-testid="tile-learner-cloud"]');
+    check('keyboard: the loop ends with 0 learner tasks in the cloud', (await text(page, 'tile-learner-cloud')) === '0');
+    await context.close();
+  }
 } finally {
   await browser.close();
   preview.kill();
