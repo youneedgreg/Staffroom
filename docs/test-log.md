@@ -113,3 +113,18 @@ The app opened with wifi off and a remark was written on the laptop. **Pass.**
 | Starter activity | PREFER_IN_CLOUD | offline | On this laptop | 4.6 s | Nothing |
 
 All three answers were usable. **Gate half passes:** with no connection, "Starter activity" still answers and says "On this laptop". The other half (the strict policy published from the Remote Config console) is still to do.
+
+## Fri 20 Nov 2026 — Remote Config school policy, changed live (second half of the Day-4 gate)
+
+**Setup:** same Mac and Chrome as the Day-3 gate, dev server, real Firebase engine, `main` at `caa6332`, invented sample class, Support screen with the Fractions panel and "Which task runs where" open. The page was loaded once (about 06:12:43) and not reloaded during the check. `school_policy` was changed in the Firebase console and published.
+
+| Published | Seen in the app | Status bar | Task map | "Ask the cloud" |
+|---|---|---|---|---|
+| Version 2, `school_policy` = `strict` | 06:18:54 | "nothing leaves this laptop" | plan "switched off"; the other six tasks `ONLY_ON_DEVICE` | off, with "Your school allows nothing to leave the laptop, so this is switched off." |
+| Version 3, `school_policy` = `standard` | between 06:25:21 and 06:26:14 (the watcher timed out, so no exact second) | "curriculum questions may use the cloud" | four learner tasks `ONLY_ON_DEVICE`, plan `ONLY_IN_CLOUD`, starter `PREFER_IN_CLOUD`, plain words `PREFER_ON_DEVICE` | on |
+
+The cloud model in the task-map caption was `gemini-3.5-flash-lite` throughout.
+
+**Pass:** both policy changes reached the open app through Remote Config's live updates, with no reload, and the learner tasks stayed `ONLY_ON_DEVICE` under both. The delay from publishing to the app changing wasn't timed, so there is no number for it.
+
+**Seen in the run:** under the strict policy the disabled "Ask the cloud" button still looks bright, so it reads as clickable (for the Day-7 design pass).
