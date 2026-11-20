@@ -8,7 +8,7 @@ Staffroom helps a class teacher finish end-of-term reports. The teacher enters e
 - **Built for:** #BuildHybridAI 2026 (Firebase AI Logic hybrid inference), Web/Chrome
 - **Curriculum pack:** Kenya's CBC, Grade 5 Mathematics
 
-<!-- Screenshots from the real engine go here (Day 8). -->
+![The Support screen: the difficulty is summed up on the laptop, the only text that will leave is shown and checked against the class list, and the plan comes back from the cloud](docs/screenshots/5-plan.jpg)
 
 ## The rule
 
@@ -57,6 +57,34 @@ You need desktop Chrome with the built-in model. On my MacBook Air M2 with Chrom
 9. Open the **Privacy ledger**. Every request is there, with where it ran and, for the cloud, the exact text sent.
 
 The **Self-test** tab runs one request per task and shows the mode and where each one ran.
+
+## Screenshots
+
+Taken on the live site in my Chrome 157, with the real on-device model and the invented sample class.
+
+**1. Class.** The invented sample class: 30 made-up learners with levels and notes, stored in this browser only.
+
+![Class screen with the invented sample class loaded](docs/screenshots/1-class.jpg)
+
+**2. Reports, mid-batch.** Each remark is drafted on the laptop and says so.
+
+![Reports screen drafting 4 of 30 remarks, each marked Written on this laptop](docs/screenshots/2-reports-mid-batch.jpg)
+
+**3. The outbound preview, passing.** This is all the text that will leave the laptop, checked against the class list: 0 learner names.
+
+![Outbound preview checked against the class list with 0 learner names, 0 numbers and 0 school words](docs/screenshots/3-preview-passing.jpg)
+
+**4. The same preview, blocking a name.** A learner's name in the difficulty switches "Ask the cloud" off and says why. Nothing is sent.
+
+![Outbound preview finding the learner name Faith, with Ask the cloud switched off](docs/screenshots/4-preview-blocking-name.jpg)
+
+**5. The plan.** The cloud answers the curriculum question. On the free tier there are no web sources, and the plan says so.
+
+![The plan from the cloud, marked No web sources](docs/screenshots/5-plan.jpg)
+
+**6. The Privacy ledger.** Every request, where it ran and what was sent. This run: 41 on the laptop, 1 in the cloud, 1 sent and not answered, 0 learner tasks sent to the cloud.
+
+![Privacy ledger showing 0 learner tasks sent to the cloud, 41 runs on this laptop and 1 in the cloud](docs/screenshots/6-privacy-ledger.jpg)
 
 ## Architecture
 
