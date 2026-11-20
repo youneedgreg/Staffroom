@@ -127,6 +127,14 @@ try {
     const firstNote = await page.inputValue('[data-testid="notes"] li >> nth=0 >> textarea');
     check('parent notes: the greeting is written by Staffroom, not the model',
       firstNote.startsWith('Dear parent or guardian of ') && !/Mrs\.|regards|\[Teacher\]/i.test(firstNote), firstNote.split('\n')[0]);
+    check('parent notes: the difficulty phrase from step 2 is added by Staffroom',
+      firstNote.includes(`In class we are working on a common mistake in fractions: ${phrase}.`), firstNote);
+    check('parent notes: the teacher is asked to check each note',
+      (await text(page, 'notes-check')).startsWith('Check each note before you send it.'));
+    check('parent notes: praise copied from the teacher\'s note opens Faith\'s note',
+      firstNote.includes('Something I have noticed about Faith: neat work.'), firstNote);
+    check('parent notes: the home activity is added in full',
+      firstNote.includes('Something you can do at home: Ask the child to share'), firstNote);
     await page.click('a[href="#/ledger"]');
     await page.waitForSelector('[data-testid="tile-learner-cloud"]');
     check('ledger after the notes: still 1 cloud run and 0 learner tasks in the cloud',

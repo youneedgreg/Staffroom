@@ -1,7 +1,8 @@
 /** The teacher-facing jobs, each built from a prompt, the runner and a parser. */
 import { groupNotes, type Group } from './groups';
 import {
-  cleanParentNote,
+  buildParentNote,
+  parsePraise,
   cleanRemark,
   difficultyPrompt,
   firstName,
@@ -98,23 +99,29 @@ export async function askPlan(
   return { plan, parsed: parsePlan(result.text) };
 }
 
-/** On-device: join the cloud's home activity to one learner's levels and note. */
+/**
+ * On-device: a word of praise copied from the learner's note, then code adds the difficulty
+ * phrase the teacher reviewed and the cloud's home activity.
+ */
 export async function writeParentNote(
   ctx: RunContext,
-  pack: CurriculumPack,
   data: ClassData,
   group: Group,
   learner: Learner,
   homeActivity: string,
+  difficulty: string,
 ): Promise<{ note: string } | { failure: Failure }> {
   const assessment = data.assessments[learner.id];
   if (!assessment) throw new Error(`No assessment for learner ${learner.id}`);
-  const spec = parentNotePrompt(pack, group.subStrand, learner, assessment, homeActivity, data.learners);
+  const spec = parentNotePrompt(learner, assessment, data.learners);
   const result = await runTask(ctx, spec);
   if (result.status !== 'ok') return { failure: result };
-  const note = cleanParentNote(result.text, firstName(learner));
-  if (!note) {
-    return { failure: { status: 'error', kind: 'other', message: 'The model returned an empty note.', entry: result.entry } };
-  }
+  const first = firstName(learner);
+  const note = buildParentNote(parsePraise(result.text, first, assessment.note), first, {
+    topic: group.subStrand.name,
+    teacherNote: assessment.note,
+    difficulty,
+    homeActivity,
+  });
   return { note };
 }

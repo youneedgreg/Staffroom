@@ -85,7 +85,7 @@ export function SelfTestScreen({ engine, settings, record }: Props) {
         : failureText(plan.failure),
     );
 
-    const note = await writeParentNote(ctx, pack, data, group, learner, home);
+    const note = await writeParentNote(ctx, data, group, learner, home, phrase);
     add('personalise', 'note' in note, 'note' in note ? note.note : failureText(note.failure));
 
     for (const spec of [lessonIdeaPrompt(pack, group.subStrand), plainWordsPrompt(pack, 'AE', group.subStrand)]) {

@@ -248,7 +248,7 @@ function GroupPanel({ group, pack, classData, ctx, settings, online, device, sta
     const outcome = await runBatch(
       group.learners,
       async (learner) => {
-        const result = await writeParentNote(ctx, pack, classData, group, learner, home);
+        const result = await writeParentNote(ctx, classData, group, learner, home, state.free);
         if ('failure' in result) {
           problem = failureText(result.failure);
           // With no on-device model every note would fail the same way, so stop at the first.
@@ -399,6 +399,13 @@ function GroupPanel({ group, pack, classData, ctx, settings, online, device, sta
             </p>
             {state.problem && state.problemAt === 'notes' && (
               <p role="alert" className="bad" data-testid="notes-problem">{state.problem}</p>
+            )}
+            {Object.keys(state.notes).length > 0 && (
+              <p className="small" data-testid="notes-check">
+                Check each note before you send it. The kind words are copied from your own note about the child, and
+                the on-device model can mistake a slip for a strength. The rest is your difficulty phrase and the home
+                activity, word for word.
+              </p>
             )}
             {Object.keys(state.notes).length > 0 && (
               <ul className="cards" data-testid="notes">
