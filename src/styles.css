@@ -222,7 +222,7 @@ h5 { font-size: 0.95rem; margin: 0.75rem 0 0.25rem; }
 .roster td, .roster th { vertical-align: middle; }
 .roster input:not(.note) { min-width: 10rem; }
 .class-actions { margin: 1rem 0 0.5rem; }
-@media (max-width: 40rem) {
+@media (max-width: 30rem) {
   .roster input:not(.note) { min-width: 7rem; width: 7rem; }
 }
 
