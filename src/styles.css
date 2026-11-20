@@ -63,13 +63,23 @@ nav a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accen
 .pill.laptop dt, .pill.laptop dd { color: var(--laptop); }
 .pill.count { background: var(--ink); border-color: var(--ink); }
 .pill.count dt, .pill.count dd { color: var(--paper); }
-.tiles { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 0.25rem 0; }
-.tiles dt { font-size: 0.8rem; color: var(--line); }
-.tiles dd { margin: 0; font-weight: 600; }
-.tile { border: 1px solid var(--line); border-radius: 8px; padding: 0.6rem 0.9rem; min-width: 9rem; }
-.tile dd { font-size: 1.6rem; }
-.tile.good { border: 2px solid var(--good); }
-.tile.bad { border: 2px solid var(--bad); }
+/* Ledger tiles: the headline count first and largest, then teal for this laptop, orange for the cloud. */
+.tiles { display: grid; gap: 0.75rem; margin: 1rem 0; grid-template-columns: repeat(auto-fill, minmax(min(9.5rem, 100%), 1fr)); }
+.tile { background: var(--paper); border: 1px solid var(--hair); border-radius: var(--radius); padding: 0.75rem 1rem; }
+.tile dt svg { flex: none; }
+.tile dt { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--line); }
+.tile dd { margin: 0.15rem 0 0; font-size: 1.75rem; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.tile.laptop { border-top: 4px solid var(--laptop); }
+.tile.laptop dt { color: var(--laptop); }
+.tile.cloud { border-top: 4px solid var(--cloud); }
+.tile.cloud dt { color: var(--cloud); }
+.tile.headline { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 1rem; padding: 1rem 1.25rem; }
+.tile.headline dt { font-size: 1.05rem; font-weight: 700; }
+.tile.headline dd { margin: 0; font-size: 2.25rem; }
+.tile.headline.good { background: var(--laptop-bg); border-color: var(--laptop-bg); }
+.tile.headline.good dt, .tile.headline.good dd { color: var(--laptop); }
+.tile.headline.bad { border: 2px solid var(--bad); }
+.tile.headline.bad dt, .tile.headline.bad dd { color: var(--bad); }
 .warn { background: var(--warn-bg); color: var(--warn-ink); padding: 0.5rem 0.75rem; border-radius: 6px; }
 .bad { color: var(--bad); font-weight: 600; }
 .row { display: flex; flex-wrap: wrap; gap: 0.5rem 0.75rem; align-items: center; }
@@ -192,3 +202,14 @@ h5 { font-size: 0.95rem; margin: 0.75rem 0 0.25rem; }
 .card > .quiet { margin: 0.15rem 0 0.6rem; }
 .card.approved { border-color: var(--accent); box-shadow: inset 4px 0 0 var(--accent); }
 .card textarea { line-height: 1.5; }
+
+/* Ledger table: a white sheet, the Ran column coloured by where the request went. */
+.sheet { background: var(--paper); border: 1px solid var(--hair); border-radius: var(--radius); padding: 0 1rem 0.5rem; }
+.sheet th, .sheet td { padding: 0.55rem 0.5rem; border-bottom-color: var(--hair); }
+.sheet td:nth-child(4) { min-width: 9rem; }
+.sheet thead th { color: var(--line); }
+.ran { font-weight: 600; }
+.ran svg { vertical-align: -3px; margin-right: 0.35rem; }
+.ran.laptop { color: var(--laptop); }
+.ran.cloud { color: var(--cloud); }
+.sheet pre { max-width: 32rem; font-size: 0.85rem; }

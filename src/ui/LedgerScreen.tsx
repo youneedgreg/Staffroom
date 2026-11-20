@@ -1,5 +1,6 @@
 import { ranText, stoppedNoModel, summarise, timedOutInCloud, type LedgerEntry, type LedgerMode } from '../core/ledger';
 import { TASKS } from '../core/policy';
+import { CloudIcon, LaptopIcon } from './icons';
 
 const MODE_TEXT: Record<LedgerMode, string> = {
   only_on_device: 'Device only',
@@ -11,6 +12,19 @@ const MODE_TEXT: Record<LedgerMode, string> = {
 };
 
 const OUTCOME_TEXT = { ok: 'Done', blocked: 'Blocked by the name check', disabled: 'Switched off', error: 'Failed' } as const;
+
+/** Where it ran, coloured like everywhere else: teal for this laptop, orange for anything that left it. */
+function Ran({ e }: { e: LedgerEntry }) {
+  const left = e.source === 'in_cloud' || e.sentChars > 0;
+  const where = e.source === 'on_device' && e.sentChars === 0 ? 'laptop' : left ? 'cloud' : '';
+  return (
+    <span className={`ran ${where}`}>
+      {where === 'laptop' && <LaptopIcon />}
+      {where === 'cloud' && <CloudIcon />}
+      {ranText(e)}
+    </span>
+  );
+}
 
 /** The Result cell. A stop for a missing on-device model is the rule working, so it isn't shown as a failure. */
 function resultText(e: LedgerEntry): string {
@@ -27,23 +41,23 @@ export function LedgerScreen({ ledger, onClear }: { ledger: LedgerEntry[]; onCle
       <h2>Privacy ledger</h2>
       <p>Every request Staffroom has made, and where it ran. This list is stored on this laptop and nowhere else.</p>
       <dl className="tiles">
-        <div className={s.learnerTasksInCloud === 0 ? 'tile good' : 'tile bad'}>
+        <div className={s.learnerTasksInCloud === 0 ? 'tile headline good' : 'tile headline bad'}>
           <dt>Learner tasks sent to the cloud</dt>
           <dd data-testid="tile-learner-cloud">{s.learnerTasksInCloud}</dd>
         </div>
-        <div className="tile"><dt>Ran on this laptop</dt><dd data-testid="tile-on-device">{s.onDevice}</dd></div>
-        <div className="tile"><dt>Ran in the cloud</dt><dd data-testid="tile-in-cloud">{s.inCloud}</dd></div>
-        <div className="tile"><dt>Sent to the cloud, not answered</dt><dd data-testid="tile-refused">{s.refusedInCloud}</dd></div>
-        <div className="tile"><dt>Characters sent</dt><dd data-testid="tile-chars">{s.charsSent}</dd></div>
+        <div className="tile laptop"><dt><LaptopIcon />Ran on this laptop</dt><dd data-testid="tile-on-device">{s.onDevice}</dd></div>
+        <div className="tile cloud"><dt><CloudIcon />Ran in the cloud</dt><dd data-testid="tile-in-cloud">{s.inCloud}</dd></div>
+        <div className="tile cloud"><dt><CloudIcon />Sent to the cloud, not answered</dt><dd data-testid="tile-refused">{s.refusedInCloud}</dd></div>
+        <div className="tile cloud"><dt><CloudIcon />Characters sent</dt><dd data-testid="tile-chars">{s.charsSent}</dd></div>
         <div className="tile"><dt>Blocked by the name check</dt><dd>{s.blocked}</dd></div>
         <div className="tile"><dt>Stopped, no on-device model</dt><dd data-testid="tile-no-model">{s.noDeviceModel}</dd></div>
         <div className="tile"><dt>Failed</dt><dd data-testid="tile-errors">{s.errors}</dd></div>
       </dl>
 
       {ledger.length === 0 ? (
-        <p>Nothing has run yet.</p>
+        <p className="step">Nothing has run yet.</p>
       ) : (
-        <div className="scroll">
+        <div className="scroll sheet">
           <table>
             <caption>Newest first{ledger.length > 300 ? ' (latest 300 shown)' : ''}</caption>
             <thead>
@@ -62,7 +76,7 @@ export function LedgerScreen({ ledger, onClear }: { ledger: LedgerEntry[]; onCle
                   <td>{new Date(e.at).toLocaleTimeString()}</td>
                   <th scope="row">{e.task === 'share' ? 'Share a plan with other teachers' : TASKS[e.task].label}</th>
                   <td>{MODE_TEXT[e.mode]}</td>
-                  <td>{ranText(e)}</td>
+                  <td><Ran e={e} /></td>
                   <td>{resultText(e)}</td>
                   <td>
                     {e.sentText ? (
