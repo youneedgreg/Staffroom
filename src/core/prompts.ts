@@ -145,9 +145,20 @@ export function cleanRemark(raw: string, name: string): string {
 // 2. A group's common difficulty. ONLY_ON_DEVICE, structured output.
 // ---------------------------------------------------------------------------
 
+/**
+ * The phrase is put after "The difficulty they share:" in the question to the cloud, so it must
+ * finish that sentence. Each learner's note covers every topic, so the model is told to keep to
+ * this one. The example is from a topic that isn't in the sample class, so it can't be copied.
+ */
 export const DIFFICULTY_SYSTEM =
-  'You read a teacher\'s short notes about several learners who struggle with the same topic. ' +
-  'State the one difficulty they share, in 18 words at most. ' +
+  "You read a teacher's short notes about learners who struggle with one maths topic. " +
+  'A note may also mention other topics: use only what is about the given topic. ' +
+  'Write the one mistake most of them share, as a phrase that finishes this sentence: ' +
+  '"The difficulty they share: ...". ' +
+  'Start with a lowercase verb ending in -ing that says what the learners do, for example ' +
+  '"reading the hour hand as the minutes when telling the time". ' +
+  'One phrase of 18 words at most, not a list. Use only what the notes say. ' +
+  'If no note is about the given topic, return an empty string. ' +
   'Describe the mathematics only. Never name or describe a person.';
 
 export const DIFFICULTY_SCHEMA: Record<string, unknown> = {
@@ -197,7 +208,9 @@ export function parseDifficulty(raw: string): string {
   text = text.replace(/[*_#`"{}]/g, '').replace(/^difficulty\s*:\s*/i, '').replace(/\s+/g, ' ').trim();
   const first = text.match(/[^.!?]+/)?.[0]?.trim() ?? '';
   const wordsList = first.split(' ').filter(Boolean);
-  return wordsList.slice(0, 25).join(' ');
+  const phrase = wordsList.slice(0, 25).join(' ');
+  // It follows "The difficulty they share:", so "Adding …" becomes "adding …". Acronyms stay.
+  return /^[A-Z][a-z]/.test(phrase) ? phrase.charAt(0).toLowerCase() + phrase.slice(1) : phrase;
 }
 
 // ---------------------------------------------------------------------------

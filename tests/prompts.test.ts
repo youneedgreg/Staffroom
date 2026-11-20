@@ -150,6 +150,8 @@ describe('difficulty', () => {
     expect(parseDifficulty('Difficulty: adding the denominators. They also guess.')).toBe('adding the denominators');
     expect(parseDifficulty('{"difficulty": 4}')).toBe('');
     expect(parseDifficulty('')).toBe('');
+    expect(parseDifficulty('{"difficulty":"Adding the tops and the bottoms"}')).toBe('adding the tops and the bottoms');
+    expect(parseDifficulty('{"difficulty":"LCM of two numbers"}')).toBe('LCM of two numbers');
   });
 
   it('keeps at most twenty-five words', () => {
