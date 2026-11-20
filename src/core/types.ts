@@ -7,6 +7,12 @@ export interface SubStrand {
   id: string;
   strand: string;
   name: string;
+  /**
+   * Words a teacher's note uses for this topic, as regular-expression pieces matched at the start
+   * of a word, ignoring case. Used to keep only the part of a note that is about one topic.
+   * Public curriculum words only.
+   */
+  keywords?: string[];
 }
 
 /** A curriculum pack holds only public curriculum words. Nothing about a learner. */
