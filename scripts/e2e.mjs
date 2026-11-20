@@ -220,7 +220,8 @@ try {
     check('parent notes: refused with no on-device model, not sent to the cloud',
       (await text(page, 'notes-problem')).includes('never sent to the cloud instead') && (await text(page, 'notes-progress')).startsWith('0 of 10'));
     check('parent notes: none shown', (await page.locator('[data-testid="notes"] li').count()) === 0);
-    check('plain words, no model: falls back to the cloud', (await quick(page, 'plainWords')) === 'In the cloud');
+    check('plain words, no model: falls back to the cloud and says why',
+      (await quick(page, 'plainWords')) === 'In the cloud (this browser has no on-device model)');
     await page.click('a[href="#/selftest"]');
     await page.click('text=Run the self-test');
     await page.waitForSelector('[data-testid="selftest-no-model"]');
