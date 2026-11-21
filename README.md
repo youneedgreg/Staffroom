@@ -214,7 +214,7 @@ npm run build && firebase deploy --only hosting --project <your-project-id>
 
 ```bash
 npm run typecheck
-npm test            # 136 unit tests (Vitest)
+npm test            # 142 unit tests (Vitest)
 npm run e2e         # build, then 142 browser checks in headless Chrome
 ```
 
