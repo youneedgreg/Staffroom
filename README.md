@@ -149,6 +149,12 @@ On a MacBook Air M2 (8 GB RAM), macOS 27, Chrome 157 stable, with the real Fireb
 - **The whole loop on the live site** (incognito, wifi off for the on-device steps): 41 runs on the laptop, 1 in the cloud, 1 sent and not answered (the plan with web sources, refused by the free tier), 1,700 characters sent in all, **0 learner tasks sent to the cloud**.
 - **With no on-device model (Safari):** the learner tasks stopped with "Did not run", the open tasks ran in the cloud, and 0 learner tasks were sent to the cloud.
 
+## What teachers said
+
+Four primary school teachers in Kenya tried Staffroom on the live site, on my laptop, with the invented sample class only. They liked it, and three of the four got to a parent note without my help.
+
+All four told me the screens were hard to use: long remarks and notes sat in small boxes they had to scroll inside, and boxes side by side didn't line up. I measured every screen and fixed what they found ([#36](https://github.com/youneedgreg/Staffroom/pull/36)). Text boxes now grow to fit their text, the class notes wrap in a wider column, and cards and columns side by side end at the same height. With real-model remarks on the live site, 0 of 30 remark boxes now cut off their text; before the fix, all 30 did.
+
 ## Limitations
 
 - Desktop Chrome only. Android, iOS and other browsers are not supported in this version.
@@ -208,7 +214,7 @@ npm run build && firebase deploy --only hosting --project <your-project-id>
 
 ```bash
 npm run typecheck
-npm test            # 136 unit tests (Vitest)
+npm test            # 142 unit tests (Vitest)
 npm run e2e         # build, then 142 browser checks in headless Chrome
 ```
 
