@@ -472,7 +472,7 @@ function GroupPanel({
               {group.learners
                 .filter((l) => state.notes[l.id] !== undefined)
                 .map((l) => (
-                  <li key={l.id} className="card">
+                  <li key={l.id} className="card parent-note">
                     <p className="row">
                       <label htmlFor={`note-${l.id}`}><strong>{l.name}</strong></label>
                       <span className="badge laptop"><LaptopIcon />Written on this laptop</span>
