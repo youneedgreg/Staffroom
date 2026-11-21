@@ -99,6 +99,8 @@ button:disabled, button[aria-disabled="true"] {
 main:focus, h2[tabindex="-1"]:focus, h4[tabindex="-1"]:focus { outline: none; }
 input, select, textarea { border: 1px solid var(--edge); border-radius: 6px; padding: 0.35rem 0.5rem; background: var(--paper); min-height: 40px; }
 textarea { width: 100%; }
+/* Text boxes grow to fit their text, so nobody scrolls inside a small box (teachers' feedback, 21 Nov). Chrome only, like the app. */
+textarea { field-sizing: content; resize: vertical; }
 input.note { min-width: 18rem; width: 100%; }
 progress { display: block; width: 100%; max-width: 24rem; }
 .scroll { overflow-x: auto; position: relative; }
@@ -162,7 +164,7 @@ h5 { font-size: 0.95rem; margin: 0.75rem 0 0.25rem; }
 .outbound label { font-weight: 700; }
 .outbound label .small { font-weight: 400; color: var(--line); }
 .outbound textarea { display: block; width: calc(100% - 2.5rem); font-family: var(--mono); font-size: 1.0625rem; font-weight: 500;
-  margin-top: 0.35rem; padding: 0.7rem 0.85rem; border: 2px solid var(--accent); border-radius: var(--radius); }
+  margin-top: 0.35rem; padding: 0.7rem 0.85rem; border: 2px solid var(--accent); border-radius: var(--radius); min-height: 5rem; }
 .outbound .pass, .outbound .fail { border-radius: var(--radius); padding: 0.75rem 1rem; margin-top: 0.9rem; margin-bottom: 0.75rem; font-weight: 700; }
 .outbound .pass { background: var(--laptop-bg); color: var(--good); }
 .outbound .fail { border: 2px solid var(--bad); color: var(--bad); }
