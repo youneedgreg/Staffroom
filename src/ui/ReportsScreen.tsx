@@ -133,7 +133,7 @@ export function ReportsScreen({ classData, pack, ctx, remarks, saveRemarks }: Pr
             .map((s) => `${s.name} ${a!.levels[s.id]}`)
             .join(' · ');
           return (
-            <li key={learner.id} className={remark?.status === 'approved' ? 'card approved' : 'card'}>
+            <li key={learner.id} className={remark?.status === 'approved' ? 'card remark approved' : 'card remark'}>
               <h3>{learner.name || 'Unnamed learner'}</h3>
               <p className="quiet">{levels || 'No levels yet'}</p>
               {remark ? (
