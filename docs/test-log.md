@@ -273,3 +273,17 @@ Each phrase took about 1.3 s after the first run of a session (the first took 3.
 
 - v5: 30 of 30 "Written on this laptop", about 80 s for all 30. Every remark is two sentences, 43 words at most.
 - Still wrong in v5, from the model: Ruth is called "he" (the prompt only says `[NAME]`, so the model guesses); Joy's remark says "numerator" where her note means the denominator; Ian's says "correct answers", which his note ("careless") contradicts. A teacher would edit these three.
+
+## Sat 21 Nov 2026 — the nine-step loop in a Chrome Guest window
+
+**Why:** in the 20 Nov incognito run the Claude extension's icon still showed, so a run with no extensions wasn't proven. A Guest window starts with none.
+
+**Setup:** the live site, built from `main` at `7c9b554` (remark prompt v5), in a Chrome 157 Guest window on my MacBook Air M2. I clicked through the steps myself; Claude watched the window (view only) and read the screen after steps 1, 7, 8 and 9. The Guest toolbar showed no extension icons.
+
+- Step 1: the invented sample class loaded (30 learners). The status bar said "On-device model: ready" at once: the Guest profile needed no model download.
+- Steps 2–3: wifi off (the status bar said offline); all 30 remarks drafted on the laptop. I didn't time the batch.
+- Steps 4–5: Fractions, 10 learners. The difficulty phrase: "adding the tops and denominators of fractions, not finding a common denominator", on topic. The preview held 0 learner names, 0 numbers, 0 school words.
+- Step 6: the plan with web sources was refused (the free-tier grounding limit); "Ask without web sources" gave a plan with three activities, marked "No web sources".
+- Step 7: 10 of 10 parent notes "Written on this laptop". Faith's note carried her positive note ("neat work").
+- Step 8: ", like Faith" turned the check red ("1 learner name"), and "Ask the cloud" was greyed out. Nothing was sent.
+- Step 9, the ledger: 41 on the laptop, 1 in the cloud, 1 sent and not answered, 1,732 characters sent, 0 blocked, 0 stopped, 1 failed (the refusal), **0 learner tasks in the cloud**.
