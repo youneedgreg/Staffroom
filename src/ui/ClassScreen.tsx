@@ -140,8 +140,9 @@ export function ClassScreen({ classData, pack, onChange, onWipe }: Props) {
                     </td>
                   ))}
                   <td>
-                    <input
+                    <textarea
                       className="note"
+                      rows={1}
                       aria-label={`Note for ${label}`}
                       value={a?.note ?? ''}
                       onChange={(e) => setNote(learner.id, e.target.value)}

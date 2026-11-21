@@ -101,7 +101,8 @@ input, select, textarea { border: 1px solid var(--edge); border-radius: 6px; pad
 textarea { width: 100%; }
 /* Text boxes grow to fit their text, so nobody scrolls inside a small box (teachers' feedback, 21 Nov). Chrome only, like the app. */
 textarea { field-sizing: content; resize: vertical; }
-input.note { min-width: 18rem; width: 100%; }
+.note { min-width: 15rem; width: 100%; display: block; }
+.fields input { width: 19rem; max-width: 100%; }
 progress { display: block; width: 100%; max-width: 24rem; }
 .scroll { overflow-x: auto; position: relative; }
 table { border-collapse: collapse; width: 100%; }
@@ -222,10 +223,13 @@ h5 { font-size: 0.95rem; margin: 0.75rem 0 0.25rem; }
 .roster { margin-top: 1.25rem; }
 .roster th[scope="row"] { position: sticky; left: 0; z-index: 1; background: var(--paper); }
 .roster td, .roster th { vertical-align: middle; }
-.roster input:not(.note) { min-width: 10rem; }
+.roster input { min-width: 9.5rem; }
+/* The note column takes the spare width; the level columns stay as narrow as their dropdowns. */
+.roster td:has(> .note) { width: 100%; }
+.roster thead th { white-space: normal; }
 .class-actions { margin: 1rem 0 0.5rem; }
 @media (max-width: 30rem) {
-  .roster input:not(.note) { min-width: 7rem; width: 7rem; }
+  .roster input { min-width: 7rem; width: 7rem; }
 }
 
 /* Self-test: the notice under the table. */
