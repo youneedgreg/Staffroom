@@ -258,3 +258,18 @@ Each phrase took about 1.3 s after the first run of a session (the first took 3.
 - The plan with web sources was refused (the free-tier grounding limit). Route A gave a plan marked "No web sources" in about 18 s.
 - Parent notes: 10 of 10, in about 14 s.
 - Ledger: 41 on the laptop, 1 in the cloud, 1 not answered, 1,728 characters sent, failed 1 (the refusal), **0 learner tasks in the cloud**.
+
+## Fri 20 Nov 2026 — remarks that use the teacher's positive notes
+
+**Why:** on the live site (prompt v3), only 6 of the 19 learners whose note holds praise ("steady, asks good questions", "neat work") had it in their remark. The model saw the whole note and mostly used the levels.
+
+**Setup:** the dev server with the real engine, in my Chrome 157, run by Claude, the invented sample class. Each version redrafted all 30 remarks; I read every remark against its note.
+
+| Prompt | Positive notes in the remark (of 19) | A mistake praised | "you"/"your" |
+|---|---|---|---|
+| v3 (live) | 6 | — | 0 |
+| v4: the praise is picked out of the note by code | 14 | Faith ("adding tops and bottoms with admirable neatness") | 0 |
+| v5: code also separates out the mistakes ("Something to work on (never praise it)") | **19** | none | 0 |
+
+- v5: 30 of 30 "Written on this laptop", about 80 s for all 30. Every remark is two sentences, 43 words at most.
+- Still wrong in v5, from the model: Ruth is called "he" (the prompt only says `[NAME]`, so the model guesses); Joy's remark says "numerator" where her note means the denominator; Ian's says "correct answers", which his note ("careless") contradicts. A teacher would edit these three.
