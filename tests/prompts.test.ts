@@ -20,6 +20,8 @@ import {
   DIFFICULTY_SCHEMA,
   REMARK_SYSTEM,
   remarkFocus,
+  notePraise,
+  noteParts,
   remarkInputHash,
   remarkPrompt,
 } from '../src/core/prompts';
@@ -47,6 +49,23 @@ describe('remarkPrompt', () => {
     expect(remarkPrompt(pack, brian, data.assessments[brian.id]!, roster).prompt).toContain('[NAME] needs to show his working');
     const aisha = byName('Aisha Mohamed');
     expect(remarkPrompt(pack, aisha, data.assessments[aisha.id]!, roster).prompt).toContain('clearly to a classmate');
+  });
+
+  it('gives the praise in the note its own line, and leaves mistakes out of it', () => {
+    const mercy = byName('Mercy Chebet');
+    expect(remarkPrompt(pack, mercy, data.assessments[mercy.id]!, roster).prompt).toContain(
+      'Habit to praise: steady and asks good questions.',
+    );
+    const kevin = byName('Kevin Kiprop');
+    expect(remarkPrompt(pack, kevin, data.assessments[kevin.id]!, roster).prompt).not.toContain('Habit to praise');
+  });
+
+  it('keeps a mistake out of the praise line, even when they share a note', () => {
+    const faith = byName('Faith Wambui');
+    const prompt = remarkPrompt(pack, faith, data.assessments[faith.id]!, roster).prompt;
+    expect(prompt).toContain('Habit to praise: neat work.');
+    expect(prompt).toContain('Something to work on (never praise it): adds the tops and the bottoms when adding fractions.');
+    expect(prompt).not.toContain("Teacher's note:");
   });
 
   it('writes "none" for an empty note and skips levels that are not set', () => {
@@ -134,7 +153,7 @@ describe('remark focus: the strength and next step come from the levels', () => 
   it('tells the model to write in the third person and never praise a mistake in the note', () => {
     expect(REMARK_SYSTEM).toContain('third person');
     expect(REMARK_SYSTEM).toContain('Never write "you" or "your"');
-    expect(REMARK_SYSTEM).toContain('never praise it');
+    expect(REMARK_SYSTEM).toContain('Never praise the thing to work on');
   });
 });
 
@@ -370,5 +389,42 @@ describe('buildParentNote', () => {
       'a common mistake in fractions: mixing up cm and m.',
     );
     expect(buildParentNote('', 'Ian', { ...facts, difficulty: ' ' })).toContain('In class we are giving extra practice in fractions.');
+  });
+});
+
+describe('notePraise', () => {
+  it('keeps the clauses that praise, in the teacher\'s words', () => {
+    expect(notePraise('steady. asks good questions')).toBe('steady and asks good questions');
+    expect(notePraise('improved a lot since last term')).toBe('improved a lot since last term');
+    expect(notePraise('joined this term, settling in well')).toBe('settling in well');
+    expect(notePraise('works well in a pair, slow alone')).toBe('works well in a pair');
+    expect(notePraise('adds the tops and the bottoms when adding fractions. neat work')).toBe('neat work');
+  });
+
+  it('never keeps a clause that holds a mistake or a worry', () => {
+    expect(notePraise('fast but careless, copies numbers down wrongly')).toBe('');
+    expect(notePraise('guesses in division. cannot find a common denominator yet')).toBe('');
+    expect(notePraise('quick with mental sums, helps others, rushes written work')).toBe('quick with mental sums and helps others');
+    expect(notePraise('knows tables to 12, needs word problem practice')).toBe('knows tables to 12');
+    expect(notePraise('')).toBe('');
+  });
+
+  it('finds praise in most of the sample notes that have some, and in none of the pure-mistake ones', () => {
+    const praised = roster.filter((l) => notePraise(data.assessments[l.id]!.note));
+    expect(praised.length).toBeGreaterThanOrEqual(18);
+    for (const name of ['Kevin Kiprop', 'Joy Achieng', 'Naomi Atieno', 'Elvis Omondi', 'Dennis Wafula']) {
+      expect(notePraise(data.assessments[byName(name).id]!.note), name).toBe('');
+    }
+  });
+});
+
+describe('noteParts', () => {
+  it('sorts every clause into praise, something to work on, or other', () => {
+    expect(noteParts('quiet, accurate, could be stretched')).toEqual({ praise: 'accurate', workOn: '', other: 'quiet; could be stretched' });
+    expect(noteParts('fast but careless, copies numbers down wrongly')).toEqual({
+      praise: '',
+      workOn: 'careless; copies numbers down wrongly',
+      other: 'fast',
+    });
   });
 });
