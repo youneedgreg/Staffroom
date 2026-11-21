@@ -11,7 +11,7 @@ import type { TaskId } from './policy';
 import { LEVELS, type Assessment, type CurriculumPack, type Learner, type Level, type SubStrand } from './types';
 
 /** Bump when a prompt changes, so saved remarks are redrafted. */
-export const PROMPT_VERSION = 3;
+export const PROMPT_VERSION = 5;
 
 export interface PromptSpec {
   task: TaskId;
@@ -58,9 +58,11 @@ export const REMARK_SYSTEM =
   'You write end-of-term report remarks for a primary school class teacher in Kenya. ' +
   `Write exactly two sentences, 45 words at most, about ${NAME_TOKEN} in the third person. ` +
   'Never write "you" or "your". ' +
-  'Sentence one praises the strength given, in the words given. Sentence two gives the next step given. ' +
+  'Sentence one praises the strength given, in the words given. ' +
+  'If a habit to praise is given, sentence one also praises it. ' +
+  'Sentence two gives the next step given. ' +
   'Use the topic names exactly as given and never swap one operation for another. ' +
-  "The teacher's note may describe a mistake: never praise it, use it only for the next step. " +
+  'Never praise the thing to work on; use it only for the next step. ' +
   'Use only the facts given. Be kind and specific. Plain British English. ' +
   'Do not use the level names or their initials. No lists, no quotation marks.';
 
@@ -109,6 +111,43 @@ export function remarkFocus(pack: CurriculumPack, assessment: Assessment): { str
   return { strength, nextStep };
 }
 
+/** Words that mark a clause of the teacher's note as praise. */
+const PRAISE = /\b(good|well|improv\w*|helps?|neat|careful|steady|asks|enjoys?|draws|explains?|clearly|leads?|strong|accurate|confident\w*|quick|knows|settling|reads|estimates|likes|finishes early|ready for)\b/i;
+/** Words that mark a clause as a mistake or a worry. A clause with any of these is never praised. */
+const WORRY = /\b(not|cannot|can't|never|forgets?|mix\w*|confus\w*|guess\w*|careless|slow|rush\w*|unsure|absent|needs?|shy|wrong\w*|only|treats|adds|writes|missing|struggl\w*|difficult\w*)\b/i;
+
+/** The teacher's note split by code into what to praise, what to work on, and anything else. */
+export interface NoteParts {
+  praise: string;
+  workOn: string;
+  other: string;
+}
+
+/**
+ * Splits the note into clauses and sorts them. A clause with a mistake or a worry is never praise.
+ * Code does this, because the small model left the praise out of most remarks when it only saw
+ * the whole note, and once praised a mistake that sat next to the praise in the same note.
+ */
+export function noteParts(note: string): NoteParts {
+  const clauses = note
+    .split(/[.;,]|\bbut\b/i)
+    .map((c) => c.trim())
+    .filter(Boolean);
+  const praise = clauses.filter((c) => PRAISE.test(c) && !WORRY.test(c));
+  const workOn = clauses.filter((c) => WORRY.test(c));
+  const other = clauses.filter((c) => !praise.includes(c) && !workOn.includes(c));
+  return {
+    praise: clip(praise.slice(0, 2).join(' and '), 90),
+    workOn: clip(workOn.join('; '), 160),
+    other: clip(other.join('; '), 120),
+  };
+}
+
+/** The praise in the teacher's note, in the teacher's own words, or ''. */
+export function notePraise(note: string): string {
+  return noteParts(note).praise;
+}
+
 export function remarkInputHash(pack: CurriculumPack, assessment: Assessment): string {
   const levels = pack.subStrands.map((s) => assessment.levels[s.id] ?? '-').join(',');
   return fnv1a(`${PROMPT_VERSION}|${pack.id}|${levels}|${assessment.note.trim()}`);
@@ -131,11 +170,18 @@ export function remarkPrompt(
   // model has one way to refer to the learner and code fills in the name afterwards.
   const note = prepareNote(assessment.note, learner, roster);
   const focus = remarkFocus(pack, assessment);
+  const parts = noteParts(note);
   const prompt = [
     `Learning area: ${pack.learningArea}, ${pack.grade}.`,
     'Levels this term:',
     ...levelLines(pack, assessment),
-    `Teacher's note: ${note.trim() ? clip(note, 400) : 'none'}`,
+    ...(note.trim()
+      ? [
+          ...(parts.praise ? [`Habit to praise: ${parts.praise}.`] : []),
+          ...(parts.workOn ? [`Something to work on (never praise it): ${parts.workOn}.`] : []),
+          ...(parts.other ? [`Other notes: ${parts.other}.`] : []),
+        ]
+      : ["Teacher's note: none"]),
     `Strength: ${focus.strength}.`,
     `Next step: ${focus.nextStep}.`,
     `Write the remark for ${NAME_TOKEN}.`,
