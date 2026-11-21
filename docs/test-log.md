@@ -287,3 +287,11 @@ Each phrase took about 1.3 s after the first run of a session (the first took 3.
 - Step 7: 10 of 10 parent notes "Written on this laptop". Faith's note carried her positive note ("neat work").
 - Step 8: ", like Faith" turned the check red ("1 learner name"), and "Ask the cloud" was greyed out. Nothing was sent.
 - Step 9, the ledger: 41 on the laptop, 1 in the cloud, 1 sent and not answered, 1,732 characters sent, 0 blocked, 0 stopped, 1 failed (the refusal), **0 learner tasks in the cloud**.
+
+## Sat 21 Nov 2026 — teachers' feedback and the layout fix
+
+**Teachers:** four primary school teachers in Kenya tried Staffroom on the live site, on my laptop, with the invented sample class only. Three of the four got to a parent note without my help. All four said the screens were hard to use: small boxes to scroll inside, and boxes side by side that didn't line up. No quotes were taken.
+
+**Layout check** (local script, simulated engine, 1440 px and 1280 px; Class, Reports, Support at each step, Ledger, Self-test, About). Before: 24 of 30 class notes cut off and the table scrolling sideways; 7 of 30 remark boxes and 10 of 10 parent-note boxes cut off; the three Support columns ending at 252, 771 and 958 px. After [#36](https://github.com/youneedgreg/Staffroom/pull/36): 0 cut off, 0 scrolling inside, 0 uneven rows. The Day-7 audit (92 views, light and dark, 1280 px and 640 px): 0 problems.
+
+**Live, with real-model remarks** (my Chrome 157, the 30 remarks already stored there, nothing redrafted): on the old build (`index-DW3xHWP6.js`) 30 of 30 remark boxes cut off their text; on the new build (`index-BzkY4Hhj.js`, from `main` at `68f1ac4`) 0 of 30, and 0 uneven rows of cards.
