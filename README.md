@@ -5,6 +5,7 @@
 Staffroom helps a class teacher finish end-of-term reports. The teacher enters each learner's levels and a short note. Staffroom drafts every report remark, finds the groups that are struggling with the same topic, asks the cloud for a remedial plan for each group, and writes a note to each parent. Remarks, group summaries and parent notes are written by Gemini Nano inside Chrome, on the teacher's own laptop. The only text that leaves is a curriculum question with no learner in it, which the teacher reads before it is sent.
 
 - **Live demo:** https://staffroom-88e70.web.app (no login; use the invented sample class)
+- **Video (2:31):** https://youtu.be/GGyMNSeP7Fo
 - **Built for:** #BuildHybridAI 2026 (Firebase AI Logic hybrid inference), Web/Chrome
 - **Curriculum pack:** Kenya's CBC, Grade 5 Mathematics
 
@@ -57,6 +58,37 @@ You need desktop Chrome with the built-in model. On my MacBook Air M2 with Chrom
 9. Open the **Privacy ledger**. Every request is there, with where it ran and, for the cloud, the exact text sent.
 
 The **Self-test** tab runs one request per task and shows the mode and where each one ran.
+
+## Video
+
+[Watch the demo on YouTube (2:31)](https://youtu.be/GGyMNSeP7Fo). It is a screen recording of the live site in Chrome on my laptop, with the invented sample class, plus one shot in Safari, which has no on-device model. Waits are sped up or cut, and the video says so on screen. The thirty remarks with wifi off took 71 s in real time.
+
+<details>
+<summary>Transcript</summary>
+
+Hybrid AI usually falls back to the cloud when the device can't run a prompt. For a class of children, that fallback is the problem. Staffroom has one rule: anything about a child stays on this laptop.
+
+Wifi is off. Thirty report remarks, written by the model inside Chrome through Firebase AI Logic, in only-on-device mode. This part is sped up; the real time is on the screen.
+
+Wifi is back on, and while it writes, the Network tab stays empty.
+
+About a third of this class is stuck on fractions. The laptop reads my notes and sums up what they share. This box is everything that will leave: a curriculum question, checked against my class list.
+
+If a name slips in, plain code that knows my class list blocks it. Not a model. Nothing is sent.
+
+Now the cloud does what a small model can't be trusted to do: curriculum knowledge. Search grounding isn't on the free tier, so Staffroom tells me, asks again without sources, and labels the plan.
+
+Back on the laptop, the plan is joined to each child's own notes. Ten notes to parents, and none of them left this laptop.
+
+Every request is logged here, and zero learner tasks sent.
+
+All four inference modes, each for a reason. Device only for anything about a child. Cloud only for knowledge. Cloud first and device first for the two tasks with no child in them.
+
+In a browser with no on-device model, Staffroom doesn't fall back. It stops and says why.
+
+Desktop Chrome only for now, and every remark is a draft the teacher approves. Four teachers in Kenya tried it, and their feedback reshaped the screens. Built in Nairobi for Kenya's CBC.
+
+</details>
 
 ## Screenshots
 
